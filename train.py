@@ -15,18 +15,6 @@ from datagen import *
 # loss function
 mse_loss = nn.MSELoss()
 
-# note how the training loop does not appear to take constraints, and only during guidenace does it
-# confirm that is how its supposed to work
-
-# def train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=1000, num_epochs=50):
-#     model.train()
-#     for epoch in range(num_epochs):
-#         for batch in dataloader:
-#             x0 = batch.x
-#             t = torch.randint(0, num_steps, (x0.size(0),), device=x0.device)
-#             noise = torch.randn_like(x0)
-#             xt = noise_schedule.q_sample(x0, t, noise)
-#             pred_noise = model(xt, batch.edge_index, batch.edge_attr)
 def train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=1000, num_epochs=50):
     model.train()
     for epoch in range(num_epochs):
@@ -55,14 +43,6 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, w_hpwl=1e-4, w_leg
     return x
 
 def compute_hpwl(x, graph):
-    """
-    Compute the Half-Perimeter Wirelength (HPWL) for 2-pin nets.
-    Args:
-        x: Tensor of shape [num_nodes, 2] with (x, y) positions.
-        graph: A graph object with .edge_index of shape [2, num_edges].
-    Returns:
-        hpwl: Scalar tensor representing the total HPWL.
-    """
     src, dst = graph.edge_index  # shape: [num_edges]
     x_src = x[src]  # shape: [num_edges, 2]
     x_dst = x[dst]  # shape: [num_edges, 2]
@@ -73,31 +53,12 @@ def compute_hpwl(x, graph):
 
 
 def compute_hpwl_gradient(x, graph):
-    """
-    Compute the gradient of HPWL w.r.t. x, i.e., ∇ₓ HPWL(x).
-    Args:
-        x: Tensor of shape [num_nodes, 2] with requires_grad=True
-        graph: A graph object with .edge_index
-    Returns:
-        grad: Tensor of shape [num_nodes, 2] — the gradient of HPWL
-    """
     x = x.clone().detach().requires_grad_(True)
     hpwl = compute_hpwl(x, graph)
     grad = torch.autograd.grad(hpwl, x, retain_graph=True)[0]
     return grad
 
 def compute_legality(x, graph, cell_width=1.0, cell_height=1.0):
-    """
-    Compute the legality penalty as the sum of squared overlaps.
-    Only penalizes when cells i and j overlap.
-    Args:
-        x: Tensor of shape [num_cells, 2], each row is (x, y)
-        graph: Not used here but included for compatibility
-        cell_width: width of a cell (assumed fixed)
-        cell_height: height of a cell (assumed fixed)
-    Returns:
-        legality: scalar tensor representing total overlap penalty
-    """
     num_cells = x.shape[0]
     penalty = 0.0
     for i in range(num_cells):
@@ -114,16 +75,6 @@ def compute_legality(x, graph, cell_width=1.0, cell_height=1.0):
 
 
 def compute_legality_gradient(x, graph, cell_width=1.0, cell_height=1.0):
-    """
-    Compute the gradient of the legality loss w.r.t. x.
-    Args:
-        x: Tensor of shape [num_cells, 2]
-        graph: not used
-        cell_width: width of a cell
-        cell_height: height of a cell
-    Returns:
-        grad: Tensor of shape [num_cells, 2] — gradient of legality loss
-    """
     x = x.clone().detach().requires_grad_(True)
     legality = compute_legality(x, graph, cell_width, cell_height)
     grad = torch.autograd.grad(legality, x, retain_graph=True)[0]
@@ -214,11 +165,19 @@ class PlacementDataset(torch.utils.data.Dataset):
         positions = []
         for cell in chip.std_cells:
             positions.append([cell.x, cell.y])
+            # print([cell.x, cell.y])
         x = torch.tensor(positions, dtype=torch.float)
+        # print(x[0:4, :])
 
+        print("x.shape", x.shape)
+
+        print(list(G.edges))
+        exit()
         # edge_index = torch.tensor(list(G.edges)).t().contiguous()  # shape [2, E]
         edge_index = torch.tensor(list(G.edges)).t().contiguous()  # shape [2, E]
+        print("edge_index", edge_index)
 
+        print("edge_index_size(1)", edge_index.size())
         # example edge attributes (if none, create ones)
         # edge_attr = torch.ones(edge_index.size(1), 4)  # edge_dim=4
         edge_attr = torch.ones(edge_index.size(1), 4)  # edge_dim=4
@@ -233,8 +192,11 @@ model = DiffusionModel(node_dim=2, edge_dim=4, hidden_dim=64, block_count=2).to(
 
 # Create dataset and dataloader
 dataset = PlacementDataset('Data.pkl')
+print("length: ", len(dataset))
+print(dataset.data[0])
 # dataset = create_dummy_dataset(num_graphs=50, num_nodes=20)
 dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
+# print()
 
 # Instantiate optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)

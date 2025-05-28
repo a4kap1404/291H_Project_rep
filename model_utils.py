@@ -43,7 +43,7 @@ class LinearNoiseSchedule:
         pred_x0 = self.predict_x0(xt, t, noise_pred)
         mean = alpha_t.sqrt() * pred_x0 + (1 - alpha_t).sqrt() * noise_pred
         if guidance_grad is not None:
-            mean = mean + beta_t * guidance_grad  # approximate; better with ∂x0/∂xt
+            mean = mean + beta_t * guidance_grad
         noise = torch.randn_like(xt)
         return mean + beta_t.sqrt() * noise
 
