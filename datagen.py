@@ -7,11 +7,18 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 import pickle
 import numpy as np
+import os
+# import 
 
 @dataclass
 class PinSlot:
     dx: float
     dy: float
+
+    def __str__(self):
+        return f"(dx, dy): ({self.dx}, {self.dy})"
+
+# def PinSlotList_str(list)
 
 @dataclass
 class Macro:
@@ -27,6 +34,10 @@ class Macro:
 
     def absolute_pins(self) -> List[Tuple[float, float]]:
         return [(self.x+p.dx, self.y+p.dy) for p in self.pin_slots]
+    
+    def __str__(self):
+        # _ = " " * 2
+        return f"(width,height):({self.width}, {self.height}), pin_slots:{[str(pin) for pin in self.pin_slots]}, (x,y):({self.x}, {self.y})"
 
 @dataclass
 class StandardCell:
@@ -41,7 +52,11 @@ class StandardCell:
         return (self.x-half_w, self.y-half_h, self.x+half_w, self.y+half_h)
 
     def absolute_pins(self) -> List[Tuple[float, float]]:
+    # def absolute_pins(self) -> List[List[float, float]]:
         return [(self.x+p.dx, self.y+p.dy) for p in self.pin_slots]
+
+    def __str__(self):
+        return f"(width,height):({self.width}, {self.height}), pin_slots:{[str(pin) for pin in self.pin_slots]}, (x,y):({self.x}, {self.y})"
 
 @dataclass
 class IOPin:
@@ -57,6 +72,9 @@ class IOPin:
     def pin_position(self) -> Tuple[float, float]:
         return (self.x, self.y)
 
+    def __str__(self):
+        return f"(width,height):({self.width}, {self.height}),\t(x,y):({self.x}, {self.y})"
+
 class ChipArea:
     def __init__(self, width, height, macros, std_cells, io_pins, rng=None):
         self.width, self.height = width, height
@@ -64,6 +82,10 @@ class ChipArea:
         self.std_cells = std_cells
         self.io_pins = io_pins
         self.rng = rng or random
+        # non_normalized variables (designated with "nn")
+        self.nn_width = None
+        self.nn_height = None
+        
 
     def overlaps_any(self, b, others):
         x1,y1,x2,y2 = b
@@ -154,21 +176,28 @@ class ChipArea:
                 occ += (ix2-ix1) * (iy2-iy1)
         return occ / area
 
-    def pins(self) -> List[Tuple[float, float, int]]:
+    # def pins(self) -> List[Tuple[float, float, int]]:
+    def pins(self) -> List[Tuple[float, float, int, int]]:
         ps = []
         # for m in self.macros:
         #     if m.x is not None:
         #         ps.extend(m.absolute_pins())
-        i = 0
-        for c in self.std_cells:
-            if c.x is not None:
-                t = c.absolute_pins()[0] + (i,)
-                ps.extend([t,])
-            i += 1
+        cell_num = 0
+        for cell in self.std_cells:
+            assert(cell.x is not None)
+            if cell.x is not None:
+                # t = cell.absolute_pins()[0] + (i,)
+                # ps.extend([t,])
+                cell_pins = cell.absolute_pins() # [(x,y), (x,y)]
+                for pin_idx in range(len(cell_pins)):
+                    cell_pins[pin_idx] = cell_pins[pin_idx] + (cell_num, pin_idx)
+                    # [(x,y,cell_num,pin_idx), ...]
+                ps.extend(cell_pins)
+            cell_num += 1
         # for io in self.io_pins:
         #     if io.x is not None:
         #         ps.append(io.pin_position())
-        print("length of ps: ", len(ps))
+        # print("length of ps: ", len(ps))
         return ps
 
 
@@ -202,43 +231,70 @@ def generate_placement(w: float,
     # exit()
 
     G = nx.DiGraph()
-    pins = chip.pins()
-    random.shuffle(pins)
-    for (x, y, idx) in pins:
-        G.add_node(idx, pos=(x, y))
+    pins = chip.pins()  # [(x,y,cell_num,pin_idx), ...]
 
-    print("added placed objects to graph, pins # =", len(pins))
+    print("# of pins:", len(pins))
+
+    # random.shuffle(pins) # is this needed if we sort?
+    # assuming all std_cells are placed
+    # nodes_added = [False] * len(chip.std_cells)
+    # for (x, y, cell_num, pin_num) in pins:
+        # if (nodes_added)
+        # G.add_node(idx, pos=(x, y))
+    
+    # assuming all std_cells are placed
+    for cell_idx, cell in enumerate(chip.std_cells):
+        G.add_node(cell_idx, pos=(cell.x, cell.y))
+
+    # print("added placed objects to graph, pins # =", len(pins))
 
     used_targets = set()
     used_sources = set()
 
     # Build unique undirected pairs sorted by distance
-    pairs = []
+    random.shuffle(pins)
+    pairs = [] # should not pairs of pins from same cells
     N = len(pins)
     edge_step_size = N // edge_sample_ratio
     for i in range(N):
         # print(i)
         for j in range(i+1, N, edge_step_size):
+            if pins[i][2] == pins[j][2]: # same cell
+                continue
             dist = math.hypot(pins[i][0]-pins[j][0], pins[i][1]-pins[j][1])
             pairs.append((i, j, dist))
-    pairs.sort(key=lambda t: t[2])
-    total = len(pairs)
+    
+    
+    print("# of pairs:", len(pairs))
 
-    print("sorted by distance")
+    pairs.sort(key=lambda t: t[2])
+
+    print("sorted by distance...")
     # print("total:", total)
     # print(pairs[0])
     # exit()
 
+    # this does not look like paper
+
     selected_edges = biased_shuffle(pairs, scale)
+    print("done with biased shuffling...")
     for k in range(int(len(selected_edges) / edge_to_node_ratio)):
         i = selected_edges[k][0]
         j = selected_edges[k][1]
-        if i not in used_sources and j not in used_targets:
-            G.add_edge(i, j)
+        cell_num_i = pins[i][2]
+        cell_num_j = pins[j][2]
+        assert(cell_num_i != cell_num_j)
+        rel_pin_num_i = pins[i][3]
+        rel_pin_num_j = pins[j][3]
+
+        if (i not in used_targets) and (j not in used_targets and j not in used_sources):
+            # i is src, j is target
+            G.add_edge(cell_num_i, cell_num_j, src_rel_pin=rel_pin_num_i, trgt_rel_pin=rel_pin_num_j)
             used_sources.add(i)
             used_targets.add(j)
-        elif j not in used_sources and i not in used_targets:
-            G.add_edge(j, i)
+        elif (j not in used_targets) and (i not in used_targets and i not in used_sources):
+            # j is src, i is target
+            G.add_edge(cell_num_j, cell_num_i, src_rel_pin=rel_pin_num_j, trgt_rel_pin=rel_pin_num_i)
             used_sources.add(j)
             used_targets.add(i)
 
@@ -264,8 +320,8 @@ def plot_full(chip: ChipArea, G: nx.DiGraph, show: bool = True) -> None:
         x1, y1 = G.nodes[u]['pos']
         x2, y2 = G.nodes[v]['pos']
         arrow = FancyArrowPatch(posA=(x1, y1), posB=(x2, y2), arrowstyle='-|>',
-                                mutation_scale=15, linewidth=1.5, color='red', alpha=0.9,
-                                shrinkA=-1, shrinkB=-1)
+                                mutation_scale=7, linewidth=1.5, color='red', alpha=0.9,
+                                shrinkA=5, shrinkB=5)
         ax.add_patch(arrow)
         arrow.set_zorder(5)
     ax.set_xlim(0, chip.width)
@@ -286,141 +342,192 @@ def biased_shuffle(sorted_list, scale=5.0):
         result.append(sorted_list.pop(chosen_idx))
     return result
 
-# Example use:
-if __name__ == '__main__':
-    N = 2
-    seed = 40
-    density = 0.9
-    max_macro_retries = 30
-    max_cell_retries = 30
-    div = 10000
-    scale = 4.0
-
-    # From cell metrics
-    MIN_C_H = 2800
-    MAX_C_H = 2800
-
-    MIN_C_W = 1718.62   # from GCD
-    MAX_C_W = 1991.75   # from AES
-    # MAX_C_W = 1718.62   # from GCD
-
-
-    MIN_C_NUM_PINS = 2
-    # MAX_C_NUM_PINS = 0  # since all are 0
-    MAX_C_NUM_PINS = 10 
-    MAX_C_NUM_PINS = 10 
+def print_cells_attr(chip: ChipArea, cell_count, macro_count=0, io_count=0):
+    print("Cell Areas")
+    # for cell in chip.std_cells:
+    cell_count = min(cell_count, len(chip.std_cells))
+    macro_count = min(macro_count, len(chip.macros))
+    io_count = min(io_count, len(chip.io_pins))
+    if (cell_count > 0):
+        print("--Cell Data--")
+        for i in range(cell_count):
+            print(chip.std_cells[i])
+        # print(f"{{width: {cell.width}, height: {cell.height}, {cell.x}, {cell.y}}}")
+    if (macro_count > 0):
+        print("--Macro Data--")
+        for i in range(macro_count):
+            print(chip.macros[i])
+    if (io_count > 0):
+        print("--IO Data--")
+        for i in range(io_count):
+            print(chip.io_pins[i])
 
 
-    MIN_C_NUM = 551     # GCD
-    MAX_C_NUM = 6000   # manual
-    # MAX_C_NUM = 15478   # AES
-    # MAX_C_NUM = 15478   # AES
-    # MAX_C_NUM = 551     # GCD
+def pin_list_good(list, object_h, object_w, chip_y_max, chip_y_min, chip_x_max, chip_x_min):
+    for pin in list:
+        pin_pos_y = pin.dy + object_h
+        pin_pos_x = pin.dx + object_w
+        if (pin_pos_y < chip_y_min or pin_pos_y > chip_y_max or 
+            pin_pos_x < chip_x_min or pin_pos_x > chip_x_max):
+            return False
+    return True
+
+def pins_on_object_good(object):
+    eps = 0.0000001
+    for pin in object.pin_slots:
+        x_good = (object.width / 2)  >= abs(pin.dx)
+        y_good = (object.height / 2) >= abs(pin.dy)
+        if not x_good or not y_good:
+            # raise Exception(
+                # f"w/2:{object.width/2}, h/2:{object.height/2}, {pin.dx, pin.dy}, {x_diff, y_diff}")
+            return False
+    return True
+
+def object_pos_good(object, chip_y_max, chip_y_min, chip_x_max, chip_x_min):
+        x_min = object.x - object.width/2
+        x_max = object.x + object.width/2
+        y_min = object.y - object.height/2
+        y_max = object.y + object.height/2
+        return not (x_min < chip_x_min or y_min < chip_y_min or 
+                    x_max > chip_x_max or y_max > chip_y_max)
+
+def chip_good_uncentered(chip: ChipArea, debug=False):
+    # checking cells
+    for cell in chip.std_cells:
+        if not object_pos_good(cell, chip.height, 0, chip.width, 0):
+            # print("failed cell ")
+            if debug: raise Exception("chip_good_error")
+            return False
+        if not pin_list_good(cell.pin_slots, cell.height, cell.width, chip.height, 0, chip.width, 0):
+            if debug: raise Exception("chip_good_error")
+            return False
+        if not pins_on_object_good(cell):
+            if debug: raise Exception("chip_good_error")
+            return False
+    # checking macros
+    for cell in chip.macros:
+        if not object_pos_good(cell, chip.height, 0, chip.width, 0):
+            if debug: raise Exception("chip_good_error")
+            return False
+        if not pin_list_good(cell.pin_slots, cell.height, cell.width, chip.height, 0, chip.width, 0):
+            if debug: raise Exception("chip_good_error")
+            return False
+        if not pins_on_object_good(cell):
+            if debug: raise Exception("chip_good_error")
+            return False
+    # checking pins (only centers)
+    for pin in chip.io_pins:
+        if (pin.y < 0 or pin.y > chip.height or pin.x < 0 or pin.x > chip.width):
+            if debug: raise Exception("chip_good_error")
+            return False
+    return True
 
 
-    # manually set
-    cell_to_macro_size = 8
-    # MIN_M_H = 0
-    MIN_M_H = int(cell_to_macro_size * MIN_C_H)
-    # MAX_M_H = 0
-    MAX_M_H = int(cell_to_macro_size * MAX_C_H)
-    # MIN_M_W = 0
-    MIN_M_W = int(cell_to_macro_size * MIN_C_W)
-    # MAX_M_W = 0
-    MAX_M_W = int(cell_to_macro_size * MAX_C_W)
-    MIN_M_NUM_PINS = int(MIN_C_NUM_PINS * 2)
-    MAX_M_NUM_PINS = int(MAX_C_NUM_PINS * 2)
-    MIN_M_NUM = 0
-    MAX_M_NUM = 10
+def estimate_num_cells_and_area(density, chip_h, chip_w, c_h, c_w, m_h, m_w):
+    # estimate num of macros and cells
+    cell_to_macro_total_area_ratio = 8
+    area_multiplier = 1 - (1/cell_to_macro_total_area_ratio)
+    cell_area = c_h * c_w
+    num_cells = int(density * chip_w * chip_h * area_multiplier / cell_area)
+    macro_area = m_h * m_w
+    if macro_area == 0:
+        num_macros = 0
+    else:
+        num_macros = int(num_cells * cell_area * (1/cell_to_macro_total_area_ratio) / macro_area)
+    return (num_cells, num_macros)
 
+def bounded_normal_sample(mean, std_dev, min_val, max_val, size=1):
+    samples = np.random.normal(loc=mean, scale=std_dev, size=size)
+    clipped = np.clip(samples, min_val, max_val)
+    if size == 1:
+        return float(clipped[0])
+    return clipped.tolist()
 
-    # Chip dimensions
-    MIN_CHIP_W = 72760     # GCD
-    MAX_CHIP_W = 100000    # CUSTOM
-    # MAX_CHIP_W = 499700    # AES
-    # MAX_CHIP_W = 72760     # GCD
+def bounded_normal_sample_int(mean, std_dev, min_val, max_val, size=1):
+    samples = np.random.normal(loc=mean, scale=std_dev, size=size)
+    clipped = np.clip(samples, min_val, max_val)
+    rounded = np.round(clipped).astype(int)
+    if size == 1:
+        return int(rounded[0])
+    return rounded.tolist()
+
+def create_macros(h_avg, h_min, h_max, w_avg, w_min, w_max, 
+                  pin_num_avg, pin_num_min, pin_num_max, 
+                  num_macros, hw_dev_factor=0.1, pin_dev_factor=0.1):
+    list = []
+    std_dev_h = hw_dev_factor * h_avg
+    std_dev_w = hw_dev_factor * w_avg
+    std_pin_num = pin_dev_factor * pin_num_avg
+    for _ in range(num_macros):
+        h = bounded_normal_sample(h_avg, std_dev_h, h_min, h_max)
+        w = bounded_normal_sample(w_avg, std_dev_w, w_min, w_max)
+        pin_num = bounded_normal_sample_int(pin_num_avg, std_pin_num, pin_num_min, pin_num_max)
+        pin_list = [PinSlot(random.uniform(-w/2, w/2), random.uniform(-h/2, h/2)) for _ in range(pin_num)]
+        list.append(Macro(w, h, pin_list))
+    return list
+
+def create_std_cells(h_avg, h_min, h_max, w_avg, w_min, w_max, 
+                  pin_num_avg, pin_num_min, pin_num_max, 
+                  num_cells, hw_dev_factor=0.1, pin_dev_factor=0.1):
+    list = []
+    std_dev_h = hw_dev_factor * h_avg
+    std_dev_w = hw_dev_factor * w_avg
+    std_pin_num = pin_dev_factor * pin_num_avg
+    for _ in range(num_cells):
+        h = bounded_normal_sample(h_avg, std_dev_h, h_min, h_max)
+        w = bounded_normal_sample(w_avg, std_dev_w, w_min, w_max)
+        pin_num = bounded_normal_sample_int(pin_num_avg, std_pin_num, pin_num_min, pin_num_max)
+        pin_list = [PinSlot(random.choice([-w/2, w/2]), random.uniform(-h/2, h/2)) for _ in range(pin_num)]
+        list.append(StandardCell(w, h, pin_list))
+    return list
+
+# define later, but USE THIS by the end
+def create_clusters_as_cells():
+    pass
+
+def normalize_object(object, max_1_half):
+    object.width = object.width / max_1_half
+    object.height = object.height / max_1_half
+    for pin in object.pin_slots:
+        pin.dx = pin.dx / max_1_half
+        pin.dy = pin.dy / max_1_half
+
+def normalize_dimensions(chip_h, chip_w, macros: List[Macro], cells: List[StandardCell], ios: List[IOPin]):
+    max_1_half = max(chip_h, chip_w) / 2
+    # divide all dimensions by max_1_half
+    norm_chip_h = chip_h / max_1_half
+    norm_chip_w = chip_w / max_1_half
+    for macro in macros:
+        normalize_object(macro, max_1_half)
+    for cell in cells:
+        normalize_object(cell, max_1_half)
+    for pin in ios:
+        pin.width = pin.width / max_1_half
+        pin.height = pin.height / max_1_half
+    return (norm_chip_h, norm_chip_w, macros, cells, ios)
+
+def shift_norm_object(object, norm_shift_left_amount, norm_shift_down_amount):
+    object.x = object.x - norm_shift_left_amount
+    object.y = object.y - norm_shift_down_amount
+
+def center_normalized_placement(chip: ChipArea):
+    if (chip.height > chip.width):
+        norm_shift_left_amount = chip.width / 2
+        norm_shift_down_amount = 1
+    else:
+        norm_shift_left_amount = 1
+        norm_shift_down_amount = chip.height / 2
+    # center chip
+    for macro in chip.macros:
+        shift_norm_object(macro, norm_shift_left_amount, norm_shift_down_amount)
+    for cell in chip.std_cells:
+        shift_norm_object(cell, norm_shift_left_amount, norm_shift_down_amount)
+    for pin in chip.io_pins:
+        shift_norm_object(pin, norm_shift_left_amount, norm_shift_down_amount)
+    return chip
+
+def check_final_positions(chip: ChipArea):
+    assert(chip)
+
+def undo_centering_on_norm(chip: ChipArea):
     
-
-    MIN_CHIP_H = 72760     # GCD
-    MAX_CHIP_H = 100000    # CUSTOM
-    # MAX_CHIP_H = 501200    # AES
-    # MAX_CHIP_H = 72760     # GCD
-
-
-    AVG_IO_PIN = 22
-
-
-    Data = list()
-
-    for i in range(N):
-        random.seed(seed + i)
-
-        m_h = random.randint(MIN_M_H, MAX_M_H)
-        m_w = random.randint(MIN_M_W, MAX_M_W)
-        m_num_pins = random.randint(MIN_M_NUM_PINS, MAX_M_NUM_PINS)
-        m_num = random.randint(MIN_M_NUM, MAX_M_NUM)
-
-        c_h = random.randint(MIN_C_H, MAX_C_H)
-        c_w = int(random.uniform(MIN_C_W, MAX_C_W))
-        c_num_pins = random.randint(MIN_C_NUM_PINS, MAX_C_NUM_PINS)
-        c_num = random.randint(MIN_C_NUM, MAX_C_NUM)
-
-        num_io_pin = AVG_IO_PIN # CHANGE if needed
-
-        chip_w = random.randint(MIN_CHIP_W, MAX_CHIP_W)
-        chip_h = random.randint(MIN_CHIP_H, MAX_CHIP_H)
-
-        # div = 100
-
-        # estimate num of macros and cells
-        cell_to_macro_total_area_ratio = 8
-        area_multiplier = 1 - (1/cell_to_macro_total_area_ratio)
-        cell_area = c_h * c_w
-        num_cells = int(density * chip_w * chip_h * area_multiplier / cell_area)
-        macro_area = m_h * m_w
-        if macro_area == 0:
-            num_macros = 0
-        else:
-            num_macros = int(num_cells * cell_area * (1/cell_to_macro_total_area_ratio) / macro_area)
-
-        print("num_cells", num_cells)
-        print("num_macros", num_macros)
-        # exit()
-
-        macros = [Macro(m_w, m_h, [PinSlot(5, 0) for _ in range(m_num_pins)]) for _ in range(num_macros)]
-        cells = [StandardCell(c_w, c_h, [PinSlot(2, 0) for _ in range(c_num_pins)]) for _ in range(num_cells)]
-        ios = [IOPin(3, 3) for _ in range(num_io_pin)]
-        data_entry = generate_placement(
-            chip_w, chip_h, macros, cells, ios, chip_h / div, 
-            density, steps=50, scale=scale, seed=seed, 
-            max_macro_retries=max_macro_retries, max_cell_retries=max_cell_retries)
-        chip, G = data_entry
-        for cell in chip.std_cells:
-            if cell.x is None or cell.y is None:
-                raise Exception("cell has None positions!")
-        Data.append(data_entry)
-        # if i == 1:
-        #     # print(data_entry[0].std_cells[0].x)
-        #     # print(data_entry[0].std_cells)
-        #     chip, G = data_entry
-        #     for u, v in G.edges():
-        #         # print("i", end="")
-        #         if 'pos' not in G.nodes[u] or 'pos' not in G.nodes[v]:
-        #             print(f"Missing position for edge {u}->{v}")
-        #             raise Exception("graph problem")
-        #     plot_full(chip, G)
-        #     # print(dir(G))
-        #     print("# of edges: ", len(G.edges))
-        #     # print(G.edges)
-        #     print("exiting")
-        #     exit()
-
-    # save
-    with open("Data.pkl", "wb") as f:
-        pickle.dump(Data, f)
-
-
-    # load  
-    # classes must be deifned to load
-    # with open("Data.pkl", "rb") as f:
-        # Data = pickle.load(f)

@@ -11,205 +11,133 @@ from model import *
 from model_utils import *
 
 from datagen import *
-
-# loss function
-mse_loss = nn.MSELoss()
-
-def train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=1000, num_epochs=50):
-    model.train()
-    for epoch in range(num_epochs):
-        for batch in dataloader:
-            x0 = batch.x
-            t = torch.randint(0, num_steps, (x0.size(0),), device=x0.device)
-            noise = torch.randn_like(x0)
-            xt = noise_schedule.q_sample(x0, t, noise)
-            pred_noise = model(xt, batch.edge_index, batch.edge_attr)
-            loss = mse_loss(pred_noise, noise)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-def guided_sampling(model, noise_schedule, graph, steps=1000, w_hpwl=1e-4, w_legality=1.0, w_congest=1.0):
-    x = torch.randn(graph.num_nodes, 2).to(next(model.parameters()).device)
-    for t in reversed(range(steps)):
-        with torch.no_grad():
-            pred_noise = model(x, graph.edge_index, graph.edge_attr)
-            x0_hat = noise_schedule.predict_x0(x, t, pred_noise)
-            # compute guidance gradients
-            grad_hpwl = compute_hpwl_gradient(x0_hat, graph)
-            grad_legality = compute_legality_gradient(x0_hat, graph)
-            grad = w_hpwl * grad_hpwl + w_legality * grad_legality # need to add congesiton
-            x = noise_schedule.p_sample(x, t, pred_noise, guidance_grad=grad)
-    return x
-
-def compute_hpwl(x, graph):
-    src, dst = graph.edge_index  # shape: [num_edges]
-    x_src = x[src]  # shape: [num_edges, 2]
-    x_dst = x[dst]  # shape: [num_edges, 2]
-    # Compute Manhattan (L1) bounding box size for each 2-pin net
-    hpwl_per_edge = (x_src - x_dst).abs().sum(dim=1)  # shape: [num_edges]
-    total_hpwl = hpwl_per_edge.sum()
-    return total_hpwl
+from train_utils import *
 
 
-def compute_hpwl_gradient(x, graph):
-    x = x.clone().detach().requires_grad_(True)
-    hpwl = compute_hpwl(x, graph)
-    grad = torch.autograd.grad(hpwl, x, retain_graph=True)[0]
-    return grad
-
-def compute_legality(x, graph, cell_width=1.0, cell_height=1.0):
-    num_cells = x.shape[0]
-    penalty = 0.0
-    for i in range(num_cells):
-        for j in range(i + 1, num_cells):  # avoid duplicate pairs and self-pairs
-            xi, yi = x[i]
-            xj, yj = x[j]
-            dx = (cell_width - torch.abs(xi - xj))
-            dy = (cell_height - torch.abs(yi - yj))
-            if dx > 0 and dy > 0:
-                # overlapping in both x and y => overlapping rectangle
-                overlap = dx * dy
-                penalty += overlap  # or: overlap ** 2 if you want squared area
-    return penalty
-
-
-def compute_legality_gradient(x, graph, cell_width=1.0, cell_height=1.0):
-    x = x.clone().detach().requires_grad_(True)
-    legality = compute_legality(x, graph, cell_width, cell_height)
-    grad = torch.autograd.grad(legality, x, retain_graph=True)[0]
-    return grad
-
-# class PlacementDataset(Dataset):
-#     def __init__(self, pkl_file):
-#         with open(pkl_file, 'rb') as f:
-#             self.data = pickle.load(f)  # list of (chip, G)
-
-#     def __len__(self):
-#         return len(self.data)
-
-#     def __getitem__(self, idx):
-#         chip, G = self.data[idx]
-
-#         # Extract standard cell positions as a tensor [num_std_cells, 2]
-#         positions = []
-#         for cell in chip.std_cells:
-#             positions.append([cell.x, cell.y])
-#         positions = torch.tensor(positions, dtype=torch.float32)
-
-#         # Extract edges as a tensor [num_edges, 2]
-#         # Networkx edges are pairs of node indices (u,v)
-#         # We'll convert them to a tensor of shape (E, 2)
-#         edges = torch.tensor(list(G.edges), dtype=torch.long)
-
-#         return {
-#             'positions': positions,
-#             'edges': edges
-#         }
-
-
-# class PlacementDataset(Dataset):
-#     def __init__(self, pkl_file):
-#         with open(pkl_file, 'rb') as f:
-#             self.data = pickle.load(f)
-
-#     def __len__(self):
-#         return len(self.data)
-
-#     # def __getitem__(self, idx):
-#     #     chip, G = self.data[idx]
-
-#     #     # Node features (positions of standard cells)
-#     #     positions = torch.tensor([[cell.x, cell.y] for cell in chip.std_cells], dtype=torch.float)
-
-#     #     # Edges as tensor of shape (2, num_edges) for PyG
-#     #     # Convert edges list [(u,v), ...] to a tensor of shape [2, E]
-#     #     edge_index = torch.tensor(list(G.edges), dtype=torch.long).t().contiguous()
-
-#     #     # If you have edge attributes, create edge_attr here
-#     #     # For now, let's just create dummy edge_attr as ones with shape (num_edges, edge_feature_dim)
-#     #     edge_attr = torch.ones(edge_index.size(1), 4)  # example with edge_dim=4
-
-#     #     data = Data(x=positions, edge_index=edge_index, edge_attr=edge_attr)
-
-#     #     return data
-
-#     def __getitem__(self, idx):
-#         chip, G = self.data[idx]
-
-#         positions = torch.tensor([[cell.x, cell.y] for cell in chip.std_cells], dtype=torch.float)
-
-#         edges = list(G.edges)
-#         if len(edges) > 0:
-#             edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
-#             edge_attr = torch.ones(edge_index.size(1), 4)
-#         else:
-#             edge_index = torch.empty((2, 0), dtype=torch.long)
-#             edge_attr = torch.empty((0, 4), dtype=torch.float)
-
-#         return Data(x=positions, edge_index=edge_index, edge_attr=edge_attr)
-
-
-
-class PlacementDataset(torch.utils.data.Dataset):
-    def __init__(self, pkl_file):
-        with open(pkl_file, 'rb') as f:
-            self.data = pickle.load(f)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        chip, G = self.data[idx]
-
-        positions = []
-        for cell in chip.std_cells:
-            positions.append([cell.x, cell.y])
-            # print([cell.x, cell.y])
-        x = torch.tensor(positions, dtype=torch.float)
-        # print(x[0:4, :])
-
-        print("x.shape", x.shape)
-
-        print(list(G.edges))
-        exit()
-        # edge_index = torch.tensor(list(G.edges)).t().contiguous()  # shape [2, E]
-        edge_index = torch.tensor(list(G.edges)).t().contiguous()  # shape [2, E]
-        print("edge_index", edge_index)
-
-        print("edge_index_size(1)", edge_index.size())
-        # example edge attributes (if none, create ones)
-        # edge_attr = torch.ones(edge_index.size(1), 4)  # edge_dim=4
-        edge_attr = torch.ones(edge_index.size(1), 4)  # edge_dim=4
-
-
-        data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
-        return data
-
-# Instantiate model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DiffusionModel(node_dim=2, edge_dim=4, hidden_dim=64, block_count=2).to(device)
+
+unset = 1
+
+node_dim = 2
+edge_dim = 4
+# pos_dim = 48
+pos_dim = 8
+# time_dim = 1
+# time_dim = 32
+# time_dim = 32
+# time_dim = 16
+# hidden_dim = 32
+hidden_dim = 128
+# hidden_dim = 256
+time_dim = hidden_dim
+block_count = 2
+# block_count = 1
+# x_encode_dim = 16
+x_encode_dim = 48
+
+# training_data_path = "./syn_data/Data_N100_v0.pkl"
+# training_data_path = "./syn_data/Data_N2_v0.pkl"
+training_data_path = "./syn_data/Data.pkl"
+
+# timesteps = 1000
+# timesteps = 20 # seems to produce less horrible results during inference
+timesteps = 200
+beta_start = 1e-4
+# beta_start = 1e-8
+beta_end = 0.02
+# beta_end = 0.04
+
+epochs = 30
+# lr = 1e-3 # standard
+lr = 1e-3
+
+debug = False
+# debug = True
+
+model = DiffusionModel(
+    node_dim=node_dim,
+    edge_dim=edge_dim,
+    pos_dim=pos_dim,
+    time_dim=time_dim,
+    hidden_dim=hidden_dim,
+    block_count=block_count,
+    x_encode_dim=x_encode_dim
+    ).to(device)
+
 
 # Create dataset and dataloader
-dataset = PlacementDataset('Data.pkl')
+dataset = PlacementDataset(training_data_path)
 print("length: ", len(dataset))
 print(dataset.data[0])
 # dataset = create_dummy_dataset(num_graphs=50, num_nodes=20)
-dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
+dataloader = DataLoader(dataset, batch_size=1, shuffle=True) # size of 1 is neccesary for now
 # print()
 
-# Instantiate optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+# optimizer
+optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-# Instantiate noise schedule
-noise_schedule = LinearNoiseSchedule(timesteps=100, beta_start=1e-4, beta_end=0.02)
+# noise schedule
+noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end)
 
-# MSE loss
+# loss
 mse_loss = torch.nn.MSELoss()
 
 print("training model...")
 
-# Training loop
-train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=100, num_epochs=2)
+# training
+train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=timesteps, num_epochs=epochs, debug=debug)
 
 print("done training model")
+
+# testing inference
+print("testing inference...")
+# tune these
+w_hpwl = 1e-4
+w_legality = 1e-4
+w_m_legality = 1e-3 # this one cant be violated either
+w_bound_legality = 1e-3 # this SHOULD BE WEIGHTED HIGHLY, as we SHOULD HAVE no violation of this
+# PUT CHECKS IN PLACE in guided_sampling to ensure it does not violatd,
+# maybe even put a manual corrector if by end, we still see violations
+grad_w_list = [w_hpwl, w_legality, w_m_legality, w_bound_legality]
+
+guidance_scale = 1
+
+test_iter = iter(dataloader) # currently on training data
+batch = next(test_iter)
+print(f"input_shape: {batch.x.shape}")
+out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale)
+print(f"outptut shape: {out.shape}")
+# check to see if constraints are met
+macro_legality = compute_macro_legality(out, batch)
+boundary_legality = compute_boundary_legality(out, batch)
+assert(macro_legality == 0)
+assert(boundary_legality == 0)
+
+# testing model shaping forward method
+# NOTE: MODEL CANNOT NORMAL DO BATCHES, change this and re-run
+# note: when a batch of 4 is sent, it flattens to 2d,s
+# NOTE: instead, just make it 2d, and just send in 1 graph for now**
+# B = 4 # CANT DO THIS
+# num_nodes = 100
+# num_edges = 234
+# output = model(
+#     x=torch.ones([num_nodes, 2], dtype=torch.float),
+#     edge_index=torch.ones([2, num_edges], dtype=torch.int),
+#     edge_attr=torch.ones([num_edges, edge_dim], dtype=torch.float),
+#     # t=torch.ones([1,1]),
+#     t=torch.tensor([1], dtype=torch.float),
+#     node_attr=torch.ones([num_nodes, node_dim], dtype=torch.float)
+# )
+# print(output.shape)
+# exit()
+
+
+
+# remove later
+# for batch in dataloader:
+#     print(batch)
+#     print("batch.x shape:", batch.x.shape)
+#     print("batch.edge_index shape:", batch.edge_index.shape)
+#     print("batch.edge_attr shape:", batch.edge_attr.shape)
+#     print("batch.batch shape:", batch.batch.shape)  # tells you which graph each node belongs to
+#     exit()

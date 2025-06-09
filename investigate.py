@@ -4,6 +4,8 @@ from odb import *
 from pathlib import Path
 import utils
 
+
+
 print("starting python script...")
 
 # If we had a separate .lef, we could run tech.readLef but we're using a db here that comes packaged with the library.
@@ -41,11 +43,43 @@ print(dbu_per_micron)
 # print("block dir:", dir(block))
 
 # print(block.getInsts()[0].getBBox().getLength())
-print(block.getInsts()[0].getBBox().yMax() - block.getInsts()[0].getBBox().yMin())
+print("height:", block.getInsts()[0].getBBox().yMax() - block.getInsts()[0].getBBox().yMin())
+print("width:", block.getInsts()[0].getBBox().xMax() - block.getInsts()[0].getBBox().xMin())
 
 # print("block dir:", dir(block))
 
 # print(dir(block.getInsts()[0]))
+# print(dir(block.getInsts()[0].getITerms()[0]))
+# print(dir(block.getInsts()[0].getITerms()[0].getBBox()))
+print("pin dx:", block.getInsts()[0].getITerms()[0].getBBox().dx())
+print("pin dy:", block.getInsts()[0].getITerms()[0].getBBox().dy())
+# print("pin xMax:", block.getInsts()[0].getITerms()[0].getBBox().xMax())
+# print(dir(block.getInsts()[0].getITerms()[0].getBBox()))
+# print(dir(block.getInsts()[0].getBBox()))
+
+k = 0
+inst  = block.getInsts()[k]
+name = block.getInsts()[k].getMaster().getName()
+master = block.getInsts()[k].getMaster()
+assert not block.getInsts()[k].isFixed()
+assert not master.isFiller()
+assert not "TAPCELL" in name or not "tapcell" in name
+
+for pin in inst.getITerms():
+    print("pin name", pin.getName())
+    print(pin.getBBox().dx(), pin.getBBox().dy())
+
+exit()
+
+for i in range(1, len(block.getInsts())):
+    if block.getInsts()[i].getMaster().getName() == name:
+        height = block.getInsts()[i].getBBox().yMax(), block.getInsts()[i].getBBox().yMin()
+        width = block.getInsts()[i].getBBox().xMax(), block.getInsts()[i].getBBox().xMin()
+        print("x, y: ", width, ",", height)
+        print(f"pin dx, dy:", block.getInsts()[i].getITerms()[0].getBBox().dx(), ",",
+                block.getInsts()[i].getITerms()[0].getBBox().dy())
+
+exit()
 
 # print(block.getInsts()[0].getMaster().isBlock())
 m_h = m_w = m_num_pins = m_num = 0

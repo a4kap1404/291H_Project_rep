@@ -215,7 +215,6 @@ def generate_init_placement(design, file_name):
 
 
 
-
 def load_init_placement(file_name):
   with open(file_name, "r") as f:
     content = f.read().splitlines()
