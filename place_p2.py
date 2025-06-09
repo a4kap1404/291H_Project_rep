@@ -226,18 +226,18 @@ if __name__ == '__main__':
     print(f"Elapsed time: {elapsed:.6f} seconds")
     print("finished model inference...")
 
-    # # check to see if constraints are met
-    # macro_legality = compute_macro_legality(out, batch)
-    # boundary_legality = compute_boundary_legality(out, batch)
-    # if (macro_legality > 0):
-    #     print("macro_legality violation")
-    # if (boundary_legality > 0):
-    #     print("boundary_legality violation")
+    # check to see if constraints are met
+    macro_legality = compute_macro_legality(out, batch)
+    boundary_legality = compute_boundary_legality(out, batch)
+    if (macro_legality > 0):
+        print("macro_legality violation")
+    if (boundary_legality > 0):
+        print("boundary_legality violation")
 
-    # # update std_cell locations
-    # for i in range(len(chip.std_cells)):
-    #     chip.std_cells[i].x = float(out[i][0])
-    #     chip.std_cells[i].y = float(out[i][1])
+    # update std_cell locations
+    for i in range(len(chip.std_cells)):
+        chip.std_cells[i].x = float(out[i][0])
+        chip.std_cells[i].y = float(out[i][1])
     
     # undo centering
     chip = undo_centering_on_norm(chip)
@@ -251,15 +251,6 @@ if __name__ == '__main__':
     #     x = G.nodes[node]['pos'][0]
     #     y = G.nodes[node]['pos'][1]
     #     G.nodes[node]['pos'] = (x * max_1_half, y * max_1_half)
-
-
-    # temp, remove later
-    # with open("ml_placed_graph.pkl", "rb") as f:
-        # chip.std_cells = pickle.load(f)
-    # chip_cells = [(cell.width, cell.height, cell.x, cell.y) for cell in chip.std_cells]
-    # with open("ml_placed_graph.pkl", "wb") as f:
-        # pickle.dump(chip_cells, f)
-
 
     # export result
     placement_name = "ml_placed_graph"
