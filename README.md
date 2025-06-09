@@ -16,6 +16,9 @@ After playing around with the dataset, you can train your model, and feel free t
 
 We trained our model on a dataset of size 100, where each placement was around ~600 cells. We than ran the model with a diffusion step count of 30, which is very small, but does speed the runtime significantly, as the model has to perform inference per iteration of sampling. Try generating a sizable and diverse dataset, then train the model. Afterwards feel free deploying it real life examples. Keep in mind the odb files are produced in the local directory, so you will need to move them to the proper directory to then launch the rest. This involves going the main Makefile in openroad, and starting from after they produced "3_5_..." (legal placement).
 
+### Reproduction
+For AES on Nandgate45 I got a runtime on my CPU of 231.782162 seconds. This problably can be sped up, but currently I did not have tools readily available to evaluate this claim. Note: If you are reading this Monday, I will probably try to get benchmarks after my final.
+
 ### File Descriptions
 datagen_main.py: use to generate synthesic dataset
 
