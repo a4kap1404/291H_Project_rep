@@ -218,7 +218,7 @@ if __name__ == '__main__':
     # run model
     print("beginning model inference...")
     start = time.perf_counter()
-    # out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale, tanh_threshold)
+    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale, tanh_threshold)
     # --- your code here ---
     end = time.perf_counter()
 
