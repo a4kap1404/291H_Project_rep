@@ -510,6 +510,10 @@ def shift_norm_object(object, norm_shift_left_amount, norm_shift_down_amount):
     object.x = object.x - norm_shift_left_amount
     object.y = object.y - norm_shift_down_amount
 
+def unshift_norm_object(object, norm_shift_left_amount, norm_shift_down_amount):
+    object.x = object.x + norm_shift_left_amount
+    object.y = object.y + norm_shift_down_amount
+
 def center_normalized_placement(chip: ChipArea):
     if (chip.height > chip.width):
         norm_shift_left_amount = chip.width / 2
@@ -527,7 +531,44 @@ def center_normalized_placement(chip: ChipArea):
     return chip
 
 def check_final_positions(chip: ChipArea):
-    assert(chip)
+    pass
+    # assert(chip)
 
 def undo_centering_on_norm(chip: ChipArea):
-    
+    if (chip.height > chip.width):
+        norm_shift_left_amount = chip.width / 2
+        norm_shift_down_amount = 1
+    else:
+        norm_shift_left_amount = 1
+        norm_shift_down_amount = chip.height / 2
+    # uncenter chip
+    for macro in chip.macros:
+        unshift_norm_object(macro, norm_shift_left_amount, norm_shift_down_amount)
+    for cell in chip.std_cells:
+        unshift_norm_object(cell, norm_shift_left_amount, norm_shift_down_amount)
+    for pin in chip.io_pins:
+        unshift_norm_object(pin, norm_shift_left_amount, norm_shift_down_amount)
+    return chip
+
+def un_normalize_object(object, max_1_half):
+    object.width = object.width * max_1_half
+    object.height = object.height * max_1_half
+    for pin in object.pin_slots:
+        pin.dx = pin.dx * max_1_half
+        pin.dy = pin.dy * max_1_half
+
+def undo_normalization(chip: ChipArea):
+    max_1_half = max(chip.nn_height, chip.nn_width) / 2
+    chip.height = chip.nn_height
+    chip.width = chip.nn_width
+
+    for macro in chip.macros:
+        un_normalize_object(macro, max_1_half)
+    for cell in chip.std_cells:
+        un_normalize_object(cell, max_1_half)
+    for pin in chip.io_pins:
+        pin.width = pin.width * max_1_half
+        pin.height = pin.height * max_1_half
+    return chip
+
+

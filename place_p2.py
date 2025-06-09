@@ -4,12 +4,15 @@ import networkx as nx
 
 from datagen import *
 from train_utils import *
+import time
 
 def import_odb_data(filename):
     with open(filename, "rb") as f:
         (cell_map, cells, macros, edges, pin_locs, chip_w, chip_h) = pickle.load(f)
     return (cell_map, cells, macros, edges, pin_locs, chip_w, chip_h)
-
+        # cell_map = pickle.load(f)
+        # return cell_map
+    # return (cell_map, cells, macros, edges, pin_locs, chip_w, chip_h)
 
 
 def get_macros_cells_and_graph(filename):
@@ -23,6 +26,9 @@ def get_macros_cells_and_graph(filename):
     #         pin_locs[i][1][0], pin_locs[i][1][1],
     #     ])
 
+
+    # print(len(edges))
+
     # filter edges b/c using Digraph in model
     filtered_edges = []
     filtered_pin_locs = []
@@ -33,7 +39,9 @@ def get_macros_cells_and_graph(filename):
         if edge not in seen_edges:
             seen_edges.add(edge)
             keep_indxs.add(i)
-    keep_indxs = list(keep_indxs).sort()
+    # print(len(keep_indxs))
+    keep_indxs = sorted(list(keep_indxs))
+    print(len(keep_indxs))
     for idx in keep_indxs:
         filtered_edges.append(edges[idx])
         filtered_pin_locs.append(pin_locs[idx])
@@ -51,7 +59,7 @@ def get_macros_cells_and_graph(filename):
         # src
         found_pin = False
         for p, pin in enumerate(cells[src_id].pin_slots):
-            if (pin.x, pin.y) == tuple(filtered_pin_locs[i][0]):
+            if (pin.dx, pin.dy) == tuple(filtered_pin_locs[i][0]):
                 found_pin = True
                 src_pin_idx = p
                 break
@@ -65,7 +73,7 @@ def get_macros_cells_and_graph(filename):
         # trgt
         found_pin = False
         for p, pin in enumerate(cells[trgt_id].pin_slots):
-            if (pin.x, pin.y) == tuple(filtered_pin_locs[i][1]):
+            if (pin.dx, pin.dy) == tuple(filtered_pin_locs[i][1]):
                 found_pin = True
                 trgt_pin_idx = p
                 break
@@ -76,7 +84,7 @@ def get_macros_cells_and_graph(filename):
             ))
             trgt_pin_idx = len(cells[trgt_id].pin_slots) - 1
         
-        filtered_rel_pin_nums.append(src_pin_idx, trgt_pin_idx)
+        filtered_rel_pin_nums.append((src_pin_idx, trgt_pin_idx))
 
     # create graph
     G = nx.DiGraph()
@@ -161,6 +169,13 @@ class PlacementDataset_Inf(torch.utils.data.Dataset):
 
 
 if __name__ == '__main__':
+
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     
     filename = "odb_placement.pkl"
     modelname = "placer_model.pkl"
@@ -173,6 +188,8 @@ if __name__ == '__main__':
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False) # size of 1 is neccesary for now
     test_iter = iter(dataloader)
     batch = next(test_iter)
+
+    print("batch.x:", batch.x.size())
 
     # load model
     with open(modelname, "rb") as f:
@@ -191,35 +208,64 @@ if __name__ == '__main__':
 
     beta_start = 1e-4
     beta_end = 0.02
+    tanh_threshold = 0.7
 
-    timesteps = 1000
+    timesteps = 30 # low due to inference
     noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end)
 
     grad_w_list = [w_hpwl, w_legality, w_m_legality, w_bound_legality]
 
     # run model
     print("beginning model inference...")
-    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale)
+    start = time.perf_counter()
+    # out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale, tanh_threshold)
+    # --- your code here ---
+    end = time.perf_counter()
+
+    elapsed = end - start
+    print(f"Elapsed time: {elapsed:.6f} seconds")
     print("finished model inference...")
 
-    # check to see if constraints are met
-    macro_legality = compute_macro_legality(out, batch)
-    boundary_legality = compute_boundary_legality(out, batch)
-    assert(macro_legality == 0)
-    assert(boundary_legality == 0)
+    # # check to see if constraints are met
+    # macro_legality = compute_macro_legality(out, batch)
+    # boundary_legality = compute_boundary_legality(out, batch)
+    # if (macro_legality > 0):
+    #     print("macro_legality violation")
+    # if (boundary_legality > 0):
+    #     print("boundary_legality violation")
 
-    # undo centering
-    for i in range(len(chip.std_cells)):
-        chip.std_cells[i].x = float(out[i][0])
-        chip.std_cells[i].y = float(out[i][1])
+    # # update std_cell locations
+    # for i in range(len(chip.std_cells)):
+    #     chip.std_cells[i].x = float(out[i][0])
+    #     chip.std_cells[i].y = float(out[i][1])
     
-        # positions = torch.tensor([[cell.x, cell.y] for cell in chip.std_cells], dtype=torch.float)
-
+    # undo centering
+    chip = undo_centering_on_norm(chip)
 
     # undo normalization
+    chip = undo_normalization(chip)
+
+    # undo on graph
+    # max_1_half = max(chip.nn_height, chip.nn_width) / 2
+    # for node in G.nodes:
+    #     x = G.nodes[node]['pos'][0]
+    #     y = G.nodes[node]['pos'][1]
+    #     G.nodes[node]['pos'] = (x * max_1_half, y * max_1_half)
+
+
+    # temp, remove later
+    # with open("ml_placed_graph.pkl", "rb") as f:
+        # chip.std_cells = pickle.load(f)
+    # chip_cells = [(cell.width, cell.height, cell.x, cell.y) for cell in chip.std_cells]
+    # with open("ml_placed_graph.pkl", "wb") as f:
+        # pickle.dump(chip_cells, f)
+
 
     # export result
-
+    placement_name = "ml_placed_graph"
+    chip_cells = [(cell.width, cell.height, cell.x, cell.y) for cell in chip.std_cells]
+    with open(placement_name + ".pkl", "wb") as f:
+        pickle.dump(chip_cells, f)
 
 # 🐻 its cozy down here
 

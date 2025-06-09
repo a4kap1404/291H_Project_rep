@@ -11,96 +11,11 @@ import random
 
 import pickle
 
-# import
+from utils_3 import *
 
 
 # from datagen import *
-from typing import List, Tuple
 
-from dataclasses import dataclass, field
-
-@dataclass
-class PinSlot:
-    dx: float
-    dy: float
-
-    def __str__(self):
-        return f"(dx, dy): ({self.dx}, {self.dy})"
-    
-@dataclass
-class Macro:
-    width: float
-    height: float
-    pin_slots: List[PinSlot]
-    x: float = field(init=False, default=None)
-    y: float = field(init=False, default=None)
-
-@dataclass
-class StandardCell:
-    width: float
-    height: float
-    pin_slots: List[PinSlot]
-    x: float = field(init=False, default=None)
-    y: float = field(init=False, default=None)
-
-@dataclass
-class IOPin:
-    width: float
-    height: float
-    x: float = field(init=False, default=None)
-    y: float = field(init=False, default=None)
-
-class ChipArea:
-    def __init__(self, width, height, macros, std_cells, io_pins, rng=None):
-        self.width, self.height = width, height
-        self.macros = macros
-        self.std_cells = std_cells
-        self.io_pins = io_pins
-        self.rng = rng or random
-        # non_normalized variables (designated with "nn")
-        self.nn_width = None
-        self.nn_height = None
-
-def normalize_object(object, max_1_half):
-    object.width = object.width / max_1_half
-    object.height = object.height / max_1_half
-    for pin in object.pin_slots:
-        pin.dx = pin.dx / max_1_half
-        pin.dy = pin.dy / max_1_half
-
-def normalize_dimensions(chip_h, chip_w, macros: List[Macro], cells: List[StandardCell], ios: List[IOPin]):
-    max_1_half = max(chip_h, chip_w) / 2
-    # divide all dimensions by max_1_half
-    norm_chip_h = chip_h / max_1_half
-    norm_chip_w = chip_w / max_1_half
-    for macro in macros:
-        normalize_object(macro, max_1_half)
-    for cell in cells:
-        normalize_object(cell, max_1_half)
-    for pin in ios:
-        pin.width = pin.width / max_1_half
-        pin.height = pin.height / max_1_half
-    return (norm_chip_h, norm_chip_w, macros, cells, ios)
-
-def shift_norm_object(object, norm_shift_left_amount, norm_shift_down_amount):
-    object.x = object.x - norm_shift_left_amount
-    object.y = object.y - norm_shift_down_amount
-
-def center_normalized_placement(chip: ChipArea):
-    if (chip.height > chip.width):
-        norm_shift_left_amount = chip.width / 2
-        norm_shift_down_amount = 1
-    else:
-        norm_shift_left_amount = 1
-        norm_shift_down_amount = chip.height / 2
-    # center chip
-    for macro in chip.macros:
-        shift_norm_object(macro, norm_shift_left_amount, norm_shift_down_amount)
-    for cell in chip.std_cells:
-        shift_norm_object(cell, norm_shift_left_amount, norm_shift_down_amount)
-    for pin in chip.io_pins:
-        shift_norm_object(pin, norm_shift_left_amount, norm_shift_down_amount)
-    return chip
 
 def is_std_cell(inst):
    isMacro = inst.getMaster().isBlock()
@@ -118,10 +33,10 @@ def hyperedge_to_edges(src_id, trgt_ids):
         edges.append((src_id, trgt_id))
     return edges
 
-def get_edges_and_pin_locs(large_net_threshold, inst_map):
+def get_edges_and_pin_locs(large_net_threshold, inst_map, block):
 #   f = open(file_name, "a")
 #   f.write("Nets information (Each line represents one net. The first element in each line is the driver pin.):\n")
-    block = ord.get_db_block()
+    # block = ord.get_db_block()
     nets = block.getNets()
 
     edges = []
@@ -148,10 +63,10 @@ def get_edges_and_pin_locs(large_net_threshold, inst_map):
             if p.isOutputSignal() and is_part_of_std_cell(p):
                 dPin = p
                 driverId = inst_map[p.getInst().getName()]
-                driver_rel_location = get_rel_location()
+                driver_rel_location = get_rel_location(p)
             elif not p.isOutputSignal() and is_part_of_std_cell(p):
                 sink_id = inst_map[p.getInst().getName()]
-                sink_rel_locations = get_rel_location()
+                sink_rel_locations = get_rel_location(p)
                 sinkPins.append(sink_id)
                 sinkPinPositons.append(sink_rel_locations)
         
@@ -161,11 +76,11 @@ def get_edges_and_pin_locs(large_net_threshold, inst_map):
         if dPin is None:
             if (net.getName() == "VDD" or net.getName() == "VSS"):
                 continue  # ignore power and ground nets
-            print("No driver found for net: ",net.getName())
+            # print("No driver found for net: ",net.getName())
             continue
     
         if (len(sinkPins) + 1 >= large_net_threshold):
-            print("Ignore large net: ",net.getName())
+            # print("Ignore large net: ",net.getName())
             continue
 
         if (len(sinkPins) == 0):
@@ -181,8 +96,8 @@ def get_edges_and_pin_locs(large_net_threshold, inst_map):
     return edges, edge_pin_locs
 
 
-def get_macros_and_cells():
-    block = ord.get_db_block()
+def get_macros_and_cells(block):
+    # block = ord.get_db_block()
     insts = block.getInsts()
 #   registers = get_registers(design)
 
@@ -229,14 +144,14 @@ def get_macros_and_cells():
             cell_map[instName] = cell_id
             cell_id += 1
             cell = StandardCell(width, height, pin_slots=[])
-            cell.x = x_center
-            cell.y = y_center
+            cell.x = float(x_center)
+            cell.y = float(y_center)
             cells.append(cell)
 
         # grab relative positions of pins (later)
         # grab all connections and store into a multigraph (later)
     
-    assert len(cell_map) == len(cells)
+    # assert len(cell_map) == len(cells)
     return cell_map, cells, macros
 
 def get_rel_location(iterm):
@@ -260,18 +175,32 @@ def get_rel_location(iterm):
     # chip_h = block.getCoreArea().dy()
 
 # STOP HERE AND SAVE
-def export_odb_data(filename):
-    cell_map, cells, macros = get_macros_and_cells()
+def export_odb_data(filename_1, filename_2, block):
+    print("getting macros and cells...")
+    cell_map, cells, macros = get_macros_and_cells(block)
     large_net_threshold = 10
-    edges, pin_locs = get_edges_and_pin_locs(large_net_threshold, cell_map)
-    block = ord.get_db_block()
+    print("edges and pin locations...")
+    edges, pin_locs = get_edges_and_pin_locs(large_net_threshold, cell_map, block)
+    # block = ord.get_db_block()
     chip_w = block.getCoreArea().dx() 
     chip_h = block.getCoreArea().dy()
 
-    save_file = (cell_map, cells, macros, edges, pin_locs, chip_w, chip_h)
-    with open(filename + ".pkl", "wb") as f:
-        pickle.dump(save_file, f)
+    print(f"cell amount:{len(cells)}")
+    print(f"macro amount:{len(macros)}")
+    print(f"unfiltered edges amount:{len(edges)}")
+    print(f"unfiltered associated pin (not i/o) amount:{len(pin_locs)}")
+    print(f"chip dims (x,y):{chip_w, chip_h}")
 
+    ml_save_file = (cell_map, cells, macros, edges, pin_locs, chip_w, chip_h)
+    # ml_save_file = cells
+
+    # print([type(c) for c in ml_save_file])
+    # print("ml_save_file:", ml_save_file)
+    with open(filename_1 + ".pkl", "wb") as f:
+        pickle.dump(ml_save_file, f)
+
+    with open(filename_2 + ".pkl", "wb") as f:
+        pickle.dump(cell_map, f)
 
 
     

@@ -121,14 +121,10 @@ class DiffusionModel(nn.Module):
                 'ln4': nn.LayerNorm(hidden_dim),
                 'gnn3': GATv2Conv(hidden_dim, hidden_dim, heads=4, concat=False, edge_dim=edge_dim), # ccheck args
                 'ln5': nn.LayerNorm(hidden_dim),
-                'attn1': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True),
-                'ln6': nn.LayerNorm(hidden_dim),
+                # 'attn1': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True),
                 'gnn4': GATv2Conv(hidden_dim, hidden_dim, heads=4, concat=False, edge_dim=edge_dim), # ccheck args
-                'ln7': nn.LayerNorm(hidden_dim),
-                'attn2': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True), # check args
-                'ln8': nn.LayerNorm(hidden_dim),
+                # 'attn2': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True), # check args
                 'mlp2': MLP(hidden_dim, 4 * hidden_dim, hidden_dim),
-                'ln9': nn.LayerNorm(hidden_dim),
             })
             )
         # final layer
@@ -196,29 +192,25 @@ class DiffusionModel(nn.Module):
         # exit()
 
         for block in self.blocks:
-            x = torch.tanh(x) # ADDED
-            # res = x
-            # x = block['ln1'](x)
-            x = block['gnn1'](x, edge_index, edge_attr) + x
+            x = block['gnn1'](x, edge_index, edge_attr) + x + time_emb
+            x = block['ln1'](x)
+            x = torch.relu(x)
+            x = block['gnn2'](x, edge_index, edge_attr) + x  + time_emb
             x = block['ln2'](x)
-            x = block['gnn2'](x, edge_index, edge_attr) + x 
-            x = block['ln3'](x)
-            # x = x + res
+            x = torch.relu(x)
             x = x + block['mlp1'](x) + time_emb
-            # x = x + block['mlp1'](x) # og
-            # x = block['ln4'](x)
-            x = block['gnn3'](x, edge_index, edge_attr)
+            x = block['gnn3'](x, edge_index, edge_attr) + time_emb
+            x = block['ln3'](x)
+            x = torch.relu(x)
+            # attn_output, _ = block['attn1'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0)) # is this right
+            # x = attn_output.squeeze(0) + x # modded
+            x = block['gnn4'](x, edge_index, edge_attr) + time_emb
+            x = block['ln4'](x)
+            x = torch.relu(x)
+            # attn_output, _ = block['attn2'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0))
+            # x = attn_output.squeeze(0) + x # modded
+            x = block['mlp2'](x) + time_emb
             x = block['ln5'](x)
-            x = torch.tanh(x) # ADDED
-            attn_output, _ = block['attn1'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0)) # is this right
-            x = attn_output.squeeze(0) + x # modded
-            # x = block['ln6'](x)
-            x = block['gnn4'](x, edge_index, edge_attr)
-            x = block['ln7'](x)
-            attn_output, _ = block['attn2'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0))
-            x = attn_output.squeeze(0) + x # modded
-            # x = block['ln8'](x)
-            x = block['mlp2'](x) + x # modded
-            x = torch.tanh(x) # ADDED
+            x = torch.relu(x)
         
         return self.out(x)

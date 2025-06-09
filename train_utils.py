@@ -59,7 +59,7 @@ def train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=1000, num
         avg_loss = epoch_loss / len(dataloader)
         print(f"avg loss on epoch #{epoch}: {avg_loss:.5f}")
 
-def guided_sampling(model, noise_schedule, graph, steps=1000, grad_w_list=None, guidance_scale=1):
+def guided_sampling(model, noise_schedule, graph, steps=1000, grad_w_list=None, guidance_scale=1, tanh_threshold=1.0):
     x = torch.randn_like(graph.x).to(next(model.parameters()).device)
     for t in reversed(range(steps)):
 
@@ -77,20 +77,9 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, grad_w_list=None, 
         # i think this should be here
         x0_hat = noise_schedule.predict_x0(x_t, t, pred_noise)
 
-
-        # remove this line later
-        # grad = None
-        # with torch.no_grad():
-        #     if t % 5 == 0:
-        #         x = torch.tanh(x)
-
-        # # RESTORE EVERYTIHNG BELOW
-        # compute guidance gradients
-        # x0_hat = x0_hat.detach().requires_grad_(True)   
-
         grad_list = [
             compute_hpwl_gradient(x0_hat, graph, x_t),
-            compute_legality_gradient(x0_hat, graph, x_t),
+            # compute_legality_gradient(x0_hat, graph, x_t),
             compute_macro_legality_gradient(x0_hat, graph, x_t),
             compute_boundary_legality_gradient(x0_hat, graph, x_t)
         ]
@@ -98,18 +87,18 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, grad_w_list=None, 
         for i in range(len(grad_list)):
             if grad_list[i] is not None:
                 grad += grad_list[i] * grad_w_list[i]
-                # if i == 3: # boundary
-                    # print("boundary condition violated")
-                    # pass
 
-        
-        # # added b/c bad performance
-        # x0_hat = torch.tanh(x)
-        # grad = None
-
-        # x = noise_schedule.p_sample(x_t, t, pred_noise, x0_hat, guidance_grad=grad, guidance_scale=guidance_scale)
         x = noise_schedule.p_sample_1(x_t, t, pred_noise, guidance_grad=grad, guidance_scale=guidance_scale)
-        # x = noise_schedule.p_sample_2(x_t, t, pred_noise, guidance_grad=grad, guidance_scale=guidance_scale)
+        if (t / steps) < tanh_threshold:
+            # print("f!!")
+            x = torch.tanh(x)
+            # if grad_list[2] > 0:
+                # x = x * 0.8
+    
+    # added b/c bad performance
+    # epsilon = 1e-4
+    # x = torch.tanh(x) * (1 - epsilon)
+    print("x[0]:", x[0])
     return x
 
 
