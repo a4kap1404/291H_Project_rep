@@ -1,15 +1,16 @@
 #!/bin/bash
+set -e
 
 # Description: Used to generate odb and json files from ofrs, and copy files to a local directory
 
 # modify these to generate specific design
-# process="nangate45"
-process="asap7"
+process="nangate45"
+# process="asap7"
 # design="aes"
-# design="gcd"
+design="gcd"
 # design="ibex"
 # design="ariane136"
-design="jpeg"
+# design="jpeg"
 # design="swerv_wrapper" # fails to generate with nangate45, can try just using regular Makefile
 
 
@@ -45,6 +46,6 @@ cp ${ofrs_dir}/flow/results/${process}/${design}/base/3_2_place_iop.odb ${ofrs_d
 cp ${ofrs_dir}/flow/results/${process}/${design}/base/3_5_place_dp.odb ${ofrs_deliv} # for comparsion to ml placement, will be used to get hpwl using custom algo
 cp ${ofrs_dir}/flow/logs/${process}/${design}/base/3_5_place_dp.json ${ofrs_deliv} # could use for getting hpwl, but we estimate it ourselves
 # for getting timing
-cp ${ofrs_dir}/flow/logs/${process}/${design}/base/3_3_place_dp.log ${ofrs_deliv} # could use for getting hpwl, but we estimate it ourselves
-cp ${ofrs_dir}/flow/logs/${process}/${design}/base/3_4_place_dp.log ${ofrs_deliv} # could use for getting hpwl, but we estimate it ourselves
-cp ${ofrs_dir}/flow/logs/${process}/${design}/base/3_5_place_dp.log ${ofrs_deliv} # could use for getting hpwl, but we estimate it ourselves
+cp ${ofrs_dir}/flow/logs/${process}/${design}/base/3_3_*.log ${ofrs_deliv} # could use for getting hpwl, but we estimate it ourselves
+cp ${ofrs_dir}/flow/logs/${process}/${design}/base/3_4_*.log ${ofrs_deliv} # could use for getting hpwl, but we estimate it ourselves
+cp ${ofrs_dir}/flow/logs/${process}/${design}/base/3_5_*.log ${ofrs_deliv} # could use for getting hpwl, but we estimate it ourselves

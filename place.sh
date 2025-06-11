@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # runtime entire placement inference flow, and records file in results.log
 
@@ -27,16 +28,16 @@ echo "\n--- Launching place_p1.py ---"
 openroad -python -no_splash -exit place_p1.py ${design} ${process}
 
 echo "\n--- Launching place_p2.py ---"
-# p2_output=$(python place_p2.py ${design} ${process} | tee /dev/tty)
+p2_output=$(python place_p2.py ${design} ${process} | tee /dev/tty)
 ml_gp_init_time=$(echo "${p2_output}" | grep -oP "Elapsed time: ${ufloat}") # seconds
 
 echo "\n--- Launching place_p3.py ---"
-# p3_output=$(openroad -python -no_splash -exit place_p3.py ${design} ${process} | tee /dev/tty)
+p3_output=$(openroad -python -no_splash -exit place_p3.py ${design} ${process} | tee /dev/tty)
 ml_placement_hpwl=$(echo "${p3_output}" | grep -oP "custom estimation of hpwl: ${uint}") # um
 ml_placement_gp_and_dp_time=$(echo "${p3_output}" | grep -oP "post-intialization placement: ${ufloat}") # seconds
 
 echo "\n--- Launching report_og_placement.py ---"
-# og_report=$(openroad -python -no_splash -exit report_og_placement.py ${design} ${process} | tee /dev/tty)
+og_report=$(openroad -python -no_splash -exit report_og_placement.py ${design} ${process} | tee /dev/tty)
 og_custom_hpwl=$(echo ${og_report} | grep -oP "original placememt custom estimation of hpwl: ${uint}")
 og_orfs_hpwl=$(echo ${og_report} | grep -oP "original placememt orfs estimation of hpwl: ${uint}")
 
@@ -61,17 +62,22 @@ time_3_5=$(awk '/Elapsed time:/ { time=$3 } END { split(time, parts, ":"); secon
 total_og_runtime=$(awk "BEGIN {print $time_3_3 + $time_3_4 + $time_3_5}")
 total_og_runtime_no_resize=$(awk "BEGIN {print $time_3_3 + $time_3_5}")
 # echo "total og runtime (including resize): ${total_og_runtime}"
-echo "total og runtime (no resize, with detailed detailed placement): ${total_og_runtime_no_resize}"
+echo "total og runtime (no resize, with detailed detailed placement): ${total_og_runtime_no_resize} s"
 
 # assumption: using no resize, but do include detail placement in timing
 
 # comparison: compute speedups
-runtime_ratio=$(awk "BEGIN {print $total_og_runtime_no_resize / $total_ml_runtime}")
+runtime_speedup=$(awk "BEGIN {print $total_og_runtime_no_resize / $total_ml_runtime}")
 custom_hpwl_speedup=$(awk "BEGIN {print $og_custom_hpwl / $ml_placement_hpwl}")
 orfs_hpwl_speedup=$(awk "BEGIN {print $og_orfs_hpwl / $ml_placement_hpwl}")
 
+echo "time_speedup: ${runtime_speedup}"
+echo "custom_hpwl_speedup: ${custom_hpwl_speedup}"
+echo "orfs_hpwl_speedup: ${orfs_hpwl_speedup}\n"
+
 # saving results
-echo "Design: ${design}, Process: ${Process}" >> results.logs
-echo "ml_runtime: ${total_ml_runtime}, og_runtime_no_resize: ${total_og_runtime_no_resize}, time_ratio: ${runtime_ratio}" >> results.log
+current_date=$(date)
+echo "Design: ${design}, Process: ${process} | ${current_date}" >> results.log
+echo "ml_runtime: ${total_ml_runtime}, og_runtime_no_resize: ${total_og_runtime_no_resize}, runtime_speedup: ${runtime_speedup}" >> results.log
 echo "ml_hpwl: ${ml_placement_hpwl}, og_custom hpwl: ${og_custom_hpwl}, og_orfs_hpwl: ${og_orfs_hpwl}" >> results.log
 echo "custom_hpwl_speedup: ${custom_hpwl_speedup}, orfs_hpwl_speedup: ${orfs_hpwl_speedup}\n" >> results.log
