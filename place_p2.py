@@ -1,9 +1,14 @@
+"""
+    Description:
+        Loads output from place_p1.py, i.e. runs inference, outputs placement, and prints time of inference
+"""
+
 # this is a non odb script!
 
 import networkx as nx
 
-from datagen import *
-from train_utils import *
+from py_utils.datagen import *
+from py_utils.train_utils import *
 import time
 
 def import_odb_data(filename):
@@ -177,8 +182,14 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     
-    filename = "odb_placement.pkl"
-    modelname = "placer_model.pkl"
+    filename = "odb_placement.pkl" # from place_p1.py
+
+    # adjust if needed
+    model_dir = "models"
+    modelname = "placer_model" # will save model
+    model_path = model_dir + "/" + modelname + ".pkl"
+
+    placement_name = "ml_placed_graph.pkl" # will export
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
@@ -192,7 +203,7 @@ if __name__ == '__main__':
     print("batch.x:", batch.x.size())
 
     # load model
-    with open(modelname, "rb") as f:
+    with open(model_path, "rb") as f:
         model = pickle.load(f)
 
     model.to(device)
@@ -219,7 +230,6 @@ if __name__ == '__main__':
     print("beginning model inference...")
     start = time.perf_counter()
     out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale, tanh_threshold)
-    # --- your code here ---
     end = time.perf_counter()
 
     elapsed = end - start
@@ -253,9 +263,8 @@ if __name__ == '__main__':
     #     G.nodes[node]['pos'] = (x * max_1_half, y * max_1_half)
 
     # export result
-    placement_name = "ml_placed_graph"
     chip_cells = [(cell.width, cell.height, cell.x, cell.y) for cell in chip.std_cells]
-    with open(placement_name + ".pkl", "wb") as f:
+    with open(placement_name, "wb") as f:
         pickle.dump(chip_cells, f)
 
 # 🐻 its cozy down here

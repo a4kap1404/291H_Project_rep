@@ -2,7 +2,7 @@
 from openroad import Design, Tech
 from odb import *
 from pathlib import Path
-import utils
+import py_utils.utils
 
 
 

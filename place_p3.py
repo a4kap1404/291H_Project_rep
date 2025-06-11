@@ -1,34 +1,54 @@
 # this is an odb script!
 
+"""
+    Important Note: 
+        After generating the 3_5 detailed placement odb,
+        we report hpwl of generated placement using a algorithm taken 
+        from the openroad github repo. This mainly due to me not being able to 
+        isolate the exact tcl code to easily get the HPWL from an post-detailed placement
+        odb. The results are NOT exactly the same,
+        but seemingly "close enough" given how off the ml_placement is from
+        the original. For a sanity check however, we will report the original
+        HPWL estimate from the 3_5_place_dp.json in ANOTHER file (report_og_placement.py)
+
+    Custom HPWL Algorithm taken from:
+        https://github.com/The-OpenROAD-Project/OpenROAD/blob/master/src/gpl/test/report_hpwl.tcl
+    
+    Metrics Reported in this script:
+        CUSTOM_HPWL(ml_placement)
+
+    Metrics Report in report_og_placement.py
+        CUSTOM_HPWL(original_placement)
+        ORFS_HPWL(original_placement)
+"""
 
 from openroad import Design, Tech, Timing
 from odb import *
 from pathlib import Path
-from utils import *
-from utils_2 import *
-
-import sys
-import argparse
-import pdn, odb, utl
-import time
+from py_utils.utils import *
+from py_utils.utils_2 import *
 
 import pickle
 
-# If we had a separate .lef, we could run tech.readLef but we're using a db here that comes packaged with the library.
-tech = Tech()
-# We do still need to load the Liberty because OpenDB doesn't store enough information for OpenSTA to run correctly.
-tech.readLiberty("./corner_libs/NangateOpenCellLibrary_typical.lib")
+# adjust if neccesary
+odb_dir_base = "odbs" # output directory
+ofrs_dir = "ofrs_deliv"
+tcl_base_dir = "misc"
+lib_dir = "corner_libs"
 
-design = Design(tech) # Every Design has to be associated with a Tech, even if it's empty.
+design = "gcd"
+process="nangate45"
 
-design.readDb("./odbs/3_2_place_iop.odb")
-# assert(utils.lib_unit_consistency(design))
-library = design.getDb().getLibs()[0]
-dbu_per_micron = library.getDbUnitsPerMicron()
-cam_vertical_offset = library.getSites()[0].getHeight()
-block = design.getBlock()
+lib_map = {
+    "nangate45": f"{lib_dir}/NangateOpenCellLibrary_typical.lib",
+    "asap7": f"{lib_dir}/merged.lib" # not sure if correct
+}
+lib_path = lib_map[process]
 
-print(dbu_per_micron)
+odb_path = f"{ofrs_dir}/{process}/{design}/3_2_place_iop.odb"
+odb_dir = f"{odb_dir_base}/{process}/{design}"
+
+odb_design, block, dbu_per_micron = load_odb_info(lib_path, odb_path, giveOdbDesign=True)
 
 # load placement
 placement_name = "ml_placed_graph.pkl"
@@ -40,10 +60,7 @@ cell_map_filename = "odb_placement_cell_map.pkl"
 with open(cell_map_filename, "rb") as f:
     cell_map = pickle.load(f)
 
-
 # move cells
-# for i, cell in enumerate(cell_placement):
-# block = ord.get_db_block()
 insts = block.getInsts()
 for inst in insts:
     if not inst.getName() in cell_map:
@@ -58,12 +75,8 @@ for inst in insts:
     y_placement_pos = y - height/2
     inst.setLocation(int(x_placement_pos), int(y_placement_pos))
 
-run_incremental_placement(design)
+run_incremental_placement(odb_design, odb_dir)
 
-    
-   
-
-
-
-
-
+# report custom hpwl of ml placement
+hpwl_in_micro = getHpwlInMicrons(odb_design, dbu_per_micron, tcl_base_dir)
+print(f"original placememt custom estimation of hpwl: {hpwl_in_micro} um")

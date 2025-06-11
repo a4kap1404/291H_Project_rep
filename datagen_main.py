@@ -1,3 +1,12 @@
+"""
+    Generates N placements
+        - Based on cell size range, avg macro to cell size ratio, avg chip size range, and other hyperparams (can modify these)
+            generates a placement 
+
+    Note: Will take a long time, scales O(n^2) with num of cells, but can adjust certain hyperparams to speed it up
+"""
+
+
 import random
 import math
 import networkx as nx
@@ -8,7 +17,8 @@ from typing import List, Tuple
 import pickle
 import numpy as np
 import os
-from datagen import *
+
+from py_utils.datagen import *
 
 
 if __name__ == '__main__':
@@ -21,20 +31,20 @@ if __name__ == '__main__':
     small = False
 
     N = 30 # num of placements
-    filename = "syn_data/Data"
+    filename = "syn_data/Data" # will add "_N{N}_v{version number}" if over N=5 samples, to not accidentally overwrite data
     seed = 40
     density = 0.9
-    max_macro_retries = 30
+    max_macro_retries = 30 # can reduce retries to speed up, but this already pretty low
     max_cell_retries = 30
-    div = 10000
+    div = 10000 # increasing will reduce size of square region used to calculate density
     # scale = 4.0
-    scale = 0.4
+    scale = 0.4 # increasing will increase likelyhood that a connection that will be made will be 2 pins that are farther apart
     
 
-    # edge sample ratio: smaller means faster
+    # edge sample ratio: smaller means faster, but produces less edges
     edge_sample_ratio = 20
 
-    # bad name? # make bigger to run faster (less edges)
+    # bad name? # make bigger to run faster, but less edges
     edge_to_node_ratio = 10
 
 
@@ -57,18 +67,15 @@ if __name__ == '__main__':
     MAX_C_W = 1991.75   # from AES
     # MAX_C_W = 1718.62   # from GCD
 
-
     MIN_C_NUM_PINS = 2
     # MAX_C_NUM_PINS = 0  # since all are 0
     MAX_C_NUM_PINS = 10 
-
 
     MIN_C_NUM = 551     # GCD
     MAX_C_NUM = 6000   # manual
     # MAX_C_NUM = 15478   # AES
     # MAX_C_NUM = 15478   # AES
     # MAX_C_NUM = 551     # GCD
-
 
     # manually set
     cell_to_macro_size = 8

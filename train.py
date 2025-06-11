@@ -7,17 +7,24 @@ from torch_geometric.loader import DataLoader
 from torch.utils.data import Dataset
 import pickle
 
-from model import *
-from model_utils import *
+from py_utils.model import *
+from py_utils.model_utils import *
 
-from datagen import *
-from train_utils import *
+from py_utils.datagen import *
+from py_utils.train_utils import *
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# change this if you generate your own dataset
+training_data_path = "./syn_data/Data_N100_v0.pkl"
+# training_data_path = "./syn_data/Data_N2_v0.pkl"
+# training_data_path = "./syn_data/Data.pkl"
+
 test_model_after_training = False
-modelname = "placer_model"
+model_dir = "models"
+modelname = "placer_model" # will save model
+model_path = model_dir + "/" + modelname + ".pkl"
 
 seed = 42
 random.seed(seed)
@@ -25,7 +32,7 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
-
+ 
 node_dim = 2
 edge_dim = 4
 pos_dim = 48
@@ -43,10 +50,6 @@ block_count = 3
 # block_count = 1
 # x_encode_dim = 16
 x_encode_dim = 48
-
-training_data_path = "./syn_data/Data_N100_v0.pkl"
-# training_data_path = "./syn_data/Data_N2_v0.pkl"
-# training_data_path = "./syn_data/Data.pkl"
 
 # timesteps = 1000
 timesteps = 30 # very low to keep inference time reasonable given no clustering
@@ -72,7 +75,7 @@ model = DiffusionModel(
 
 # Create dataset and dataloader
 dataset = PlacementDataset(training_data_path)
-print("length: ", len(dataset))
+print("N: ", len(dataset))
 print(dataset.data[0])
 # dataset = create_dummy_dataset(num_graphs=50, num_nodes=20)
 dataloader = DataLoader(dataset, batch_size=1, shuffle=True) # size of 1 is neccesary for now
@@ -94,7 +97,7 @@ train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=timesteps, nu
 
 print("done training model, now saving")
 
-with open(modelname + ".pkl", "wb") as f:
+with open(model_path, "wb") as f:
     pickle.dump(model, f)
 
 
@@ -110,7 +113,14 @@ if test_model_after_training:
     w_bound_legality = 1e-3 # this SHOULD BE WEIGHTED HIGHLY, as we SHOULD HAVE no violation of this
     # PUT CHECKS IN PLACE in guided_sampling to ensure it does not violatd,
     # maybe even put a manual corrector if by end, we still see violations
-    grad_w_list = [w_hpwl, w_legality, w_m_legality, w_bound_legality]
+    
+    # dont change these names unless in py_utils.train_utils.guided_sampling also change
+    grad_weights = {
+        "w_hpwl": w_hpwl,
+        "w_legality": w_legality,
+        "w_m_legality": w_m_legality, 
+        "w_bound_legality": w_bound_legality
+    }
 
     guidance_scale = 1
     tanh_threshold = 1
@@ -118,7 +128,7 @@ if test_model_after_training:
     test_iter = iter(dataloader) # currently on training data
     batch = next(test_iter)
     print(f"input_shape: {batch.x.shape}")
-    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale, tanh_threshold)
+    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_weights, guidance_scale, tanh_threshold)
     print(f"outptut shape: {out.shape}")
     print("out:", out)
     # check to see if constraints are met
