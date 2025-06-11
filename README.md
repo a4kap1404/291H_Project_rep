@@ -15,11 +15,9 @@ Note: Before running a file, look briefly at top of each file for variables to a
 - Then train model on said dataset using train.py
 
 (3): Evaluation
-- Use place_p1, place_p2, place_p3 in that order to produce a machine learned placement.
-  - place_p2.py performs the actual ML-inference, and does measure the timing. 
-  - place_p3.py will produce hpwl metrics (custom algorithm, see file description at top of page)
-- To compare to OpenRoad's placement, use report_og_placement.py to measure both hpwl reported from the 3_5_place_dp.json produced by OFRS, aswell the same custom HPWL algorithm use to measure it in place_p3.py for the machine learning 
-
+- Call place.sh to run inference on different designs, but see "place_p{1,2,3}.py" and modify certain paths.
+  - Will print to terminal and save data ot results.log
+  - Also reports measure both hpwl reported from the 3_5_place_dp.json produced by OFRS, aswell the same custom HPWL algorithm use to measure it in place_p3.py for the machine learning
 ### Description
 This is a diffusion model implementaion heavily based on the paper "Chip Placement with Diffusion Models". It works by taking in ideal synthetic placements as training data, and diffusing them using the standard DDPM method through a linear noise schedule. During sampling (inference) it uses a form of potential-based guidance to steer the model to place results according to the constraints of overlap (noted as legality in code) and hpwl. During sampling, as the model reverses the noise, a potential is computed using estimates of hpwl and overlap over the estimation of x0 (the predicted final placement based on the current time step), then the gradient is taken with respect to x_t, and used to converge to better distributions of results learned during training. The model itself consists of GATs and linear layers. The attention layers found in the orignal were removed due to limitations on node size. 
 
