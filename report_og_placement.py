@@ -15,6 +15,7 @@ from odb import *
 from pathlib import Path
 from py_utils.utils import *
 from py_utils.utils_2 import *
+import json
 
 # adjust if neccesary
 lib_dir = "corner_libs"
@@ -39,4 +40,8 @@ hpwl_in_micro = getHpwlInMicrons(odb_design, dbu_per_micron, tcl_base_dir)
 print(f"original placememt custom estimation of hpwl: {hpwl_in_micro} um")
 
 # ofrs hpwl
-# REPORT THIS
+json_path = f"{ofrs_dir}/{process}/{design}/3_5_place_dp.json"
+with open(json_path, 'r') as f:
+    data = json.load(f)
+orfs_hpwl = data.get("detailedplace__route__wirelength__estimated")
+print(f"original placememt orfs estimation of hpwl: {orfs_hpwl} um")
