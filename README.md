@@ -1,3 +1,25 @@
+### Important Note:
+
+The repo has been revamped to make it easier for users to test different configurations (design and pdk). The old version of the repository can be found in the zip file "291H_Project2-main_old.zip".
+
+### Instructions
+
+Note: Before running a file, look briefly at top of each file for variables to adjust (paths, designs, processes...)
+
+(1): Setup Repo
+- See gen_floorplan_and_copy.sh to create neccesary directories, generate ofrs products that will be used for testing/evaluation, and copy those products to a local directory.
+
+(2): Training
+- Generate Dataset using datagen_main.py
+  - Will take a long time, scales O(n^2) with num of cells, but can adjust certain hyperparams to speed it up
+- Then train model on said dataset using train.py
+
+(3): Evaluation
+- Use place_p1, place_p2, place_p3 in that order to produce a machine learned placement.
+  - place_p2.py performs the actual ML-inference, and does measure the timing. 
+  - place_p3.py will produce hpwl metrics (custom algorithm, see file description at top of page)
+- To compare to OpenRoad's placement, use report_og_placement.py to measure both hpwl reported from the 3_5_place_dp.json produced by OFRS, aswell the same custom HPWL algorithm use to measure it in place_p3.py for the machine learning 
+
 ### Description
 This is a diffusion model implementaion heavily based on the paper "Chip Placement with Diffusion Models". It works by taking in ideal synthetic placements as training data, and diffusing them using the standard DDPM method through a linear noise schedule. During sampling (inference) it uses a form of potential-based guidance to steer the model to place results according to the constraints of overlap (noted as legality in code) and hpwl. During sampling, as the model reverses the noise, a potential is computed using estimates of hpwl and overlap over the estimation of x0 (the predicted final placement based on the current time step), then the gradient is taken with respect to x_t, and used to converge to better distributions of results learned during training. The model itself consists of GATs and linear layers. The attention layers found in the orignal were removed due to limitations on node size. 
 
@@ -20,21 +42,22 @@ We trained our model on a dataset of size 100, where each placement was around ~
 For AES on Nandgate45 I got a runtime on my CPU of 231.782162 seconds. This problably can be sped up, but currently I did not have tools readily available to evaluate this claim. Note: If you are reading this Monday, I will probably try to get benchmarks after my final.
 
 ### File Descriptions
+
+gen_floorplan_and_copy.sh: create neccesary directories, generate ofrs products that will be used for testing/evaluation, and copy those products to a local directory
+
 datagen_main.py: use to generate synthesic dataset
 
 model.py: define denoising model architecture
 
 model_utils.py: defines linear noise schedule
 
-old_scripts.sh: moves design/pdk instance from openroad (assumes openroad installed in "of") to location directories
-
 (launch using "openroad -python -exit place_p1.py")
 place_p1.py: openroad based python file; Use to grab "3_2_..."  (io placement), and convert into graph for ML model
 
-place_p2.py: pytorch based python file; Uses to deploy model, and saves result
+place_p2.py: pytorch based python file; Uses to deploy model, and saves result. Also measures inference time.
 
 (launch using "openroad -python -exit place_p3.py")
-place_p3.py: openroad
+place_p3.py: 
 
 train.py: Launches training loop and saves file
 
