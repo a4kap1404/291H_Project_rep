@@ -11,13 +11,14 @@ import random
 
 import pickle
 
-from utils_3 import *
+# from utils_3 import *
+from py_utils.utils_3 import *
 
 
 # from datagen import *
 
 # report custom hpwl of ml placement
-def getHpwlInMicrons(odb_design, dbu_per_micron, tcl_base_dir):
+def getHpwlInMicrons(odb_design, block, tech, dbu_per_micron, tcl_base_dir):
     odb_design.evalTclString(f"source {tcl_base_dir}/report_hpwl.tcl")
     hpwl = odb_design.evalTclString("get_my_hpwl")
     assert hpwl == str(int(hpwl))
@@ -25,7 +26,7 @@ def getHpwlInMicrons(odb_design, dbu_per_micron, tcl_base_dir):
     rounded_hpwl_in_microns = int(hpwl / dbu_per_micron)
     return rounded_hpwl_in_microns
 
-def load_odb_info(lib_path, odb_path, giveOdbDesign=False):
+def load_odb_info(lib_path, odb_path):
     # If we had a separate .lef, we could run tech.readLef but we're using a db here that comes packaged with the library.
     tech = Tech()
     # We do still need to load the Liberty because OpenDB doesn't store enough information for OpenSTA to run correctly.
@@ -35,10 +36,8 @@ def load_odb_info(lib_path, odb_path, giveOdbDesign=False):
     library = odb_design.getDb().getLibs()[0]
     dbu_per_micron = library.getDbUnitsPerMicron()
     block = odb_design.getBlock()
-    if giveOdbDesign:
-        odb_design, block, dbu_per_micron
-    else:
-        return block, dbu_per_micron
+
+    return odb_design, block, tech, dbu_per_micron
 
 def is_std_cell(inst):
    isMacro = inst.getMaster().isBlock()
@@ -127,6 +126,8 @@ def get_macros_and_cells(block):
     cell_id = 0
     cell_map = dict()
 
+    # print(f"len of insts: {len(block.getInsts())}")
+
     macros = []
     cells = []
     # io_pins = []
@@ -198,7 +199,8 @@ def get_rel_location(iterm):
     # chip_h = block.getCoreArea().dy()
 
 # STOP HERE AND SAVE
-def export_odb_data(filename_1, filename_2, block):
+def export_odb_data(filename_1, filename_2, block, odb_design, tech):
+
     print("getting macros and cells...")
     cell_map, cells, macros = get_macros_and_cells(block)
     large_net_threshold = 10

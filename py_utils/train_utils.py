@@ -8,9 +8,9 @@ from torch.utils.data import Dataset
 import pickle
 
 from model import *
-from model_utils import *
+from py_utils.model_utils import *
 
-from datagen import *
+from py_utils.datagen import *
 
 # loss function
 mse_loss = nn.MSELoss()
@@ -86,7 +86,8 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, grad_weights=None,
         
         grad = torch.zeros_like(x_t)
         for metric in gradients:
-            grad += gradients[metric] * grad_weights[metric]
+            if gradients[metric] is not None:
+                grad += gradients[metric] * grad_weights[metric]
 
         x = noise_schedule.p_sample_1(x_t, t, pred_noise, guidance_grad=grad, guidance_scale=guidance_scale)
         # not optimal, but have to for now

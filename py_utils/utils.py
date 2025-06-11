@@ -235,7 +235,7 @@ def load_init_placement(file_name):
     inst.setLocation(x, y)
 
 
-def run_incremental_placement(design, odb_dir):
+def run_incremental_placement(design, block, tech, odb_dir):
   # Configure and run global placement
   print("###run global placement###")
   design.evalTclString("global_placement -routability_driven -timing_driven -skip_initial_place -incremental")

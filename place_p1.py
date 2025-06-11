@@ -11,13 +11,21 @@ from odb import *
 from pathlib import Path
 from py_utils.utils import *
 from py_utils.utils_2 import *
+import sys
+
+
+design = "gcd"
+process="nangate45"
+if len(sys.argv) < 3:
+    print("\nError: openroad -python -exit design process")
+    sys.exit(1)
+design = sys.argv[1]
+process = sys.argv[2]
 
 # adjust if neccesary
 lib_dir = "corner_libs"
 ofrs_dir = "ofrs_deliv"
 
-design = "gcd"
-process="nangate45"
 
 lib_map = {
     "nangate45": f"{lib_dir}/NangateOpenCellLibrary_typical.lib",
@@ -26,10 +34,10 @@ lib_map = {
 lib_path = lib_map[process]
 odb_path = f"{ofrs_dir}/{process}/{design}/3_2_place_iop.odb"
 
-block, dbu_per_micron = load_odb_info(lib_path, odb_path)
+odb_design, block, tech, dbu_per_micron = load_odb_info(lib_path, odb_path)
 
 # assume 3_2_place_iop has been done and loaded
 filename = "odb_placement.pkl"
 cell_map_filename = "odb_placement_cell_map.pkl"
-export_odb_data(filename, cell_map_filename, block)
+export_odb_data(filename, cell_map_filename, block, odb_design, tech)
 

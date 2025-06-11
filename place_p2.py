@@ -9,7 +9,9 @@ import networkx as nx
 
 from py_utils.datagen import *
 from py_utils.train_utils import *
+from model import *
 import time
+import sys
 
 def import_odb_data(filename):
     with open(filename, "rb") as f:
@@ -184,6 +186,15 @@ if __name__ == '__main__':
     
     filename = "odb_placement.pkl" # from place_p1.py
 
+    design = "gcd"
+    process="nangate45"
+    if len(sys.argv) < 2:
+        print("Usage: python place_2.py ")
+        sys.exit(1)
+    design = sys.argv[1]
+    process = sys.argv[2]
+
+
     # adjust if needed
     model_dir = "models"
     modelname = "placer_model" # will save model
@@ -214,7 +225,14 @@ if __name__ == '__main__':
     w_legality = 1e-4
     w_m_legality = 1e-3 # this one cant be violated either
     w_bound_legality = 1e-3
-    grad_w_list = [w_hpwl, w_legality, w_m_legality, w_bound_legality]
+
+    grad_weights = {
+        "w_hpwl": w_hpwl,
+        "w_legality": w_legality,
+        "w_m_legality": w_m_legality, 
+        "w_bound_legality": w_bound_legality
+    }
+
     guidance_scale = 1
 
     beta_start = 1e-4
@@ -224,12 +242,10 @@ if __name__ == '__main__':
     timesteps = 30 # low due to inference
     noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end)
 
-    grad_w_list = [w_hpwl, w_legality, w_m_legality, w_bound_legality]
-
     # run model
     print("beginning model inference...")
     start = time.perf_counter()
-    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_w_list, guidance_scale, tanh_threshold)
+    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_weights, guidance_scale, tanh_threshold)
     end = time.perf_counter()
 
     elapsed = end - start

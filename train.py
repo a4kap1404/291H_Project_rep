@@ -7,7 +7,7 @@ from torch_geometric.loader import DataLoader
 from torch.utils.data import Dataset
 import pickle
 
-from py_utils.model import *
+from model import *
 from py_utils.model_utils import *
 
 from py_utils.datagen import *
@@ -17,8 +17,8 @@ from py_utils.train_utils import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # change this if you generate your own dataset
-training_data_path = "./syn_data/Data_N100_v0.pkl"
-# training_data_path = "./syn_data/Data_N2_v0.pkl"
+# training_data_path = "./syn_data/Data_N100_v0.pkl" # was being used
+training_data_path = "./syn_data/Data_N2_v0.pkl"
 # training_data_path = "./syn_data/Data.pkl"
 
 test_model_after_training = False

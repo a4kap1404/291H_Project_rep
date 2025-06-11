@@ -29,6 +29,7 @@ from py_utils.utils import *
 from py_utils.utils_2 import *
 
 import pickle
+import sys
 
 # adjust if neccesary
 odb_dir_base = "odbs" # output directory
@@ -38,6 +39,12 @@ lib_dir = "corner_libs"
 
 design = "gcd"
 process="nangate45"
+if len(sys.argv) < 3:
+    print("\nError: openroad -python -exit place_p3.py design process")
+    sys.exit(1)
+design = sys.argv[1]
+process = sys.argv[2]
+
 
 lib_map = {
     "nangate45": f"{lib_dir}/NangateOpenCellLibrary_typical.lib",
@@ -48,7 +55,7 @@ lib_path = lib_map[process]
 odb_path = f"{ofrs_dir}/{process}/{design}/3_2_place_iop.odb"
 odb_dir = f"{odb_dir_base}/{process}/{design}"
 
-odb_design, block, dbu_per_micron = load_odb_info(lib_path, odb_path, giveOdbDesign=True)
+odb_design, block, tech, dbu_per_micron = load_odb_info(lib_path, odb_path)
 
 # load placement
 placement_name = "ml_placed_graph.pkl"
@@ -75,8 +82,13 @@ for inst in insts:
     y_placement_pos = y - height/2
     inst.setLocation(int(x_placement_pos), int(y_placement_pos))
 
-run_incremental_placement(odb_design, odb_dir)
+# timing rest of 
+start = time.perf_counter()
+run_incremental_placement(odb_design, block, tech, odb_dir)
+end = time.perf_counter()
+elapsed = end - start
+print(f"Elapsed time of post-intialization placement: {elapsed:.6f} seconds")
 
 # report custom hpwl of ml placement
-hpwl_in_micro = getHpwlInMicrons(odb_design, dbu_per_micron, tcl_base_dir)
+hpwl_in_micro = getHpwlInMicrons(odb_design, block, tech, dbu_per_micron, tcl_base_dir)
 print(f"original placememt custom estimation of hpwl: {hpwl_in_micro} um")

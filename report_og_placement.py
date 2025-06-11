@@ -16,6 +16,8 @@ from pathlib import Path
 from py_utils.utils import *
 from py_utils.utils_2 import *
 import json
+import sys
+
 
 # adjust if neccesary
 lib_dir = "corner_libs"
@@ -24,6 +26,11 @@ tcl_base_dir = "misc" # adjust if needed
 
 design = "gcd"
 process="nangate45"
+if len(sys.argv) < 3:
+    print("\nError: openroad -python -exit place_p3.py design process")
+    sys.exit(1)
+design = sys.argv[1]
+process = sys.argv[2]
 
 lib_map = {
     "nangate45": f"{lib_dir}/NangateOpenCellLibrary_typical.lib",
@@ -33,10 +40,10 @@ lib_map = {
 lib_path = lib_map[process]
 odb_path = f"{ofrs_dir}/{process}/{design}/3_5_place_dp.odb"
 
-odb_design, block, dbu_per_micron = load_odb_info(lib_path, odb_path, giveOdbDesign=True)
+odb_design, block, tech, dbu_per_micron = load_odb_info(lib_path, odb_path)
 
 # custom hpwl of original placement
-hpwl_in_micro = getHpwlInMicrons(odb_design, dbu_per_micron, tcl_base_dir)
+hpwl_in_micro = getHpwlInMicrons(odb_design, block, tech, dbu_per_micron, tcl_base_dir)
 print(f"original placememt custom estimation of hpwl: {hpwl_in_micro} um")
 
 # ofrs hpwl

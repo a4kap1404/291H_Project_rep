@@ -1,0 +1,11 @@
+OpenRoad Flow Scripts
+    - use a newer version of openroad, as older versions will fail to build "swerv_wrapper" and "ariane136"
+
+Python (used 3.12)
+
+Notable Python packages:
+    torch
+    torch_geometric
+    matplotlib
+    numpy
+    networkx
