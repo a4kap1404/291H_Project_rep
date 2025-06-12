@@ -194,7 +194,6 @@ if __name__ == '__main__':
     design = sys.argv[1]
     process = sys.argv[2]
 
-
     # adjust if needed
     model_dir = "models"
     modelname = "placer_model" # will save model
@@ -223,8 +222,8 @@ if __name__ == '__main__':
     # guidance potential gradient weights
     w_hpwl = 1e-4
     w_legality = 1e-4
-    w_m_legality = 1e-3 # this one cant be violated either
-    w_bound_legality = 1e-3
+    w_m_legality = 8e-4 # this one cant be violated either
+    w_bound_legality = 1e-4
 
     grad_weights = {
         "w_hpwl": w_hpwl,
@@ -240,12 +239,12 @@ if __name__ == '__main__':
     tanh_threshold = 0.7
 
     timesteps = 30 # low due to inference
-    noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end)
+    noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end, device=device)
 
     # run model
     print("beginning model inference...")
     start = time.perf_counter()
-    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_weights, guidance_scale, tanh_threshold)
+    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_weights, guidance_scale, tanh_threshold, device)
     end = time.perf_counter()
 
     elapsed = end - start
