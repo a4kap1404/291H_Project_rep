@@ -122,9 +122,9 @@ class DiffusionModel(nn.Module):
                 'ln4': nn.LayerNorm(hidden_dim),
                 'gnn3': GATv2Conv(hidden_dim, hidden_dim, heads=4, concat=False, edge_dim=edge_dim), # ccheck args
                 'ln5': nn.LayerNorm(hidden_dim),
-                'attn1': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True),
+                # 'attn1': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True),
                 'gnn4': GATv2Conv(hidden_dim, hidden_dim, heads=4, concat=False, edge_dim=edge_dim), # ccheck args
-                'attn2': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True), # check args
+                # 'attn2': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True), # check args
                 'mlp2': MLP(hidden_dim, 4 * hidden_dim, hidden_dim),
             })
             )
@@ -205,13 +205,13 @@ class DiffusionModel(nn.Module):
             x = block['gnn3'](x, edge_index, edge_attr) + time_emb
             x = block['ln3'](x)
             x = torch.relu(x)
-            attn_output, _ = block['attn1'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0)) # is this right
-            x = attn_output.squeeze(0) + x # modded
+            # attn_output, _ = block['attn1'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0)) # is this right
+            # x = attn_output.squeeze(0) + x # modded
             x = block['gnn4'](x, edge_index, edge_attr) + time_emb
             x = block['ln4'](x)
             x = torch.relu(x)
-            attn_output, _ = block['attn2'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0))
-            x = attn_output.squeeze(0) + x # modded
+            # attn_output, _ = block['attn2'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0))
+            # x = attn_output.squeeze(0) + x # modded
             x = block['mlp2'](x) + time_emb
             x = block['ln5'](x)
             x = torch.relu(x)

@@ -189,7 +189,8 @@ if __name__ == '__main__':
     design = "gcd"
     process="nangate45"
     if len(sys.argv) < 2:
-        print("Usage: python place_2.py ")
+        print("Usage: python place_2.py <design> <process>")
+        print("exiting...")
         sys.exit(1)
     design = sys.argv[1]
     process = sys.argv[2]
@@ -224,6 +225,9 @@ if __name__ == '__main__':
 
     model.to(device)
 
+    timesteps = 20 # low due to inference time
+
+
     # model params (should not change unless retrain)
     # guidance potential gradient weights
     w_hpwl = 1e-4
@@ -238,13 +242,15 @@ if __name__ == '__main__':
         "w_bound_legality": w_bound_legality
     }
 
-    guidance_scale = 1
+    for weight in grad_weights:
+        grad_weights[weight] *= 1000 / timesteps
+
+    guidance_scale = 0.2
 
     beta_start = 1e-4
     beta_end = 0.02
-    tanh_threshold = 0.7
+    tanh_threshold = 1
 
-    timesteps = 30 # low due to inference
     noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end, device=device)
 
     # run model

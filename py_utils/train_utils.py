@@ -80,9 +80,10 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, grad_weights=None,
         x_t = x.detach().clone().requires_grad_()
 
         # print(f"--steps:{t} / {steps}--")
-        if t % (steps//10) == 0:
-            print(f"--steps:{t} / {steps}--")
-            print("x[0]:", x_t[0])
+        if steps // 10 > 0:
+            if t % (steps//10) == 0:
+                print(f"--steps:{t} / {steps}--")
+                print("x[0]:", x_t[0])
         with torch.no_grad():
             pred_noise = model(x_t, graph.edge_index, graph.edge_attr, torch.tensor([t], dtype=torch.float).to(device), 
                                graph.node_attr)

@@ -48,14 +48,14 @@ hidden_dim = 256
 # hidden_dim = 256
 time_dim = hidden_dim
 # block_count = 2
-block_count = 3
+block_count = 4
 # block_count = 1
 # x_encode_dim = 16
 x_encode_dim = 48
 
 # timesteps = 1000
-# timesteps = 30 # very low to keep inference time reasonable given no clustering
-timesteps = 50 # very low to keep inference time reasonable given no clustering
+timesteps = 20 # very low to keep inference time reasonable given no clustering
+# timesteps = 50 # very low to keep inference time reasonable given no clustering
 beta_start = 1e-4
 beta_end = 0.02
 
