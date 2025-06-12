@@ -41,7 +41,15 @@ either the directory/file does not exist and should be created using this script
   - use gen_hpwl_gpu_reports.sh (use bash) on ORFS to get final reports
 
 #### Results
-- Mine can be found in final_results.txt. Yours once fully generated will be at the bottom of the results.log file.
+Mine can be found in final_results.txt. Yours once fully generated will be at the bottom of the results.log file.
+
+Summary:
+Only ran on aes, gcd, ibex, and jpeg. The two other, larger designs had an issue with not generating 3_2_place_iop.odb on the openroad version I had installed, but regardless the runtime of those are pretty infeasible to run on my model due to a lack of clustering. 
+
+The model fails to generate good results, seeing no improvement in HPWL. Attempting to overfit on a simple 33-node placement did not show substantial improvements in MSE which, as discussed in the limitations section below, seems to suggest a architectual limitaiton in the model. Even if clustering were implemented, it is not obvious this implementation as it stands would prove effective, but of course the authors of 
+"Chip Placement with Diffusion Models" showed otherwise. Their model is not exactly the same as ours, as discussed in the Description section below.
+
+For timing results, our model was also significantly slower that the OFRS version. This can largely be attributed to a lack of clustering. The model can be trained to have a lesser amount of diffusion steps leading to faster timings, but this in general will reduce quality of results.
 
 ### Description
 This is a diffusion model implementaion heavily based on the paper "Chip Placement with Diffusion Models". It works by taking in ideal synthetic placements as training data, and diffusing them using the standard DDPM method through a linear noise schedule. During sampling (inference) it uses a form of potential-based guidance to steer the model to place results according to the constraints of overlap (noted as legality in code) and hpwl. During sampling, as the model reverses the noise, a potential is computed using estimates of hpwl and overlap over the estimation of x0 (the predicted final placement based on the current time step), then the gradient is taken with respect to x_t, and used to converge to better distributions of results learned during training. The model itself consists of GATs and linear layers. The attention layers found in the orignal were removed due to limitations on node size. 
