@@ -44,6 +44,7 @@ either the directory/file does not exist and should be created using this script
 Mine can be found in final_results.txt. Yours once fully generated will be at the bottom of the results.log file.
 
 Summary:
+
 Only ran on aes, gcd, ibex, and jpeg. The two other, larger designs had an issue with not generating 3_2_place_iop.odb on the openroad version I had installed, but regardless the runtime of those are pretty infeasible to run on my model due to a lack of clustering. 
 
 The model fails to generate good results, seeing no improvement in HPWL. Attempting to overfit on a simple 33-node placement did not show substantial improvements in MSE which, as discussed in the limitations section below, seems to suggest a architectual limitaiton in the model. Even if clustering were implemented, it is not obvious this implementation as it stands would prove effective, but of course the authors of 
