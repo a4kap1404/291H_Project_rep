@@ -1,0 +1,20 @@
+Design: gcd, Process:  | date
+ml_runtime: 8.7967, og_runtime_no_resize: 2.23, time_ratio: 0.253504
+ml_hpwl: 14424, og_custom hpwl: 4505, og_orfs_hpwl: 3216
+custom_hpwl_speedup: 0.312327, orfs_hpwl_speedup: 0.222962
+
+Design: gcd, Process:  | date
+ml_runtime: 8.65156, og_runtime_no_resize: 2.23, time_ratio: 0.257757
+ml_hpwl: 14424, og_custom hpwl: 4505, og_orfs_hpwl: 3216
+custom_hpwl_speedup: 0.312327, orfs_hpwl_speedup: 0.222962
+
+Design: gcd, Process:  | date
+ml_runtime: 9.62988, og_runtime_no_resize: 2.23, runtime_speedup: 0.231571
+ml_hpwl: 14424, og_custom hpwl: 4505, og_orfs_hpwl: 3216
+custom_hpwl_speedup: 0.312327, orfs_hpwl_speedup: 0.222962
+
+Design: gcd, Process: nangate45 | Wed Jun 11 03:05:53 PDT 2025
+ml_runtime: 7.97149, og_runtime_no_resize: 2.23, runtime_speedup: 0.279747
+ml_hpwl: 14424, og_custom hpwl: 4505, og_orfs_hpwl: 3216
+custom_hpwl_speedup: 0.312327, orfs_hpwl_speedup: 0.222962
+

@@ -5,6 +5,7 @@ set -e
 
 ml_placement_dir="odbs"
 ofrs_deliv_base="ofrs_deliv"
+output_log_file="results.log"
 
 
 process="nangate45"
@@ -12,9 +13,12 @@ process="nangate45"
 # design="aes"
 design="gcd"
 # design="ibex"
-# design="ariane136"
+# design="ariane136" # ORFS could not generate 3_2, but would take forever to run anyway
 # design="jpeg"
-# design="swerv_wrapper"
+# design="swerv_wrapper" # ORFS could not generate 3_2, but would take forever to run anyway
+
+echo "---------------------------------------------" >> "${output_log_file}"
+
 
 mkdir -p ${ml_placement_dir}/${process}/${design}
 
@@ -77,7 +81,7 @@ echo "orfs_hpwl_speedup: ${orfs_hpwl_speedup}\n"
 
 # saving results
 current_date=$(date)
-echo "Design: ${design}, Process: ${process} | ${current_date}" >> results.log
-echo "ml_runtime: ${total_ml_runtime}, og_runtime_no_resize: ${total_og_runtime_no_resize}, runtime_speedup: ${runtime_speedup}" >> results.log
-echo "ml_hpwl: ${ml_placement_hpwl}, og_custom hpwl: ${og_custom_hpwl}, og_orfs_hpwl: ${og_orfs_hpwl}" >> results.log
-echo "custom_hpwl_speedup: ${custom_hpwl_speedup}, orfs_hpwl_speedup: ${orfs_hpwl_speedup}\n" >> results.log
+echo "Design: ${design}, Process: ${process} | ${current_date}" >> "$output_log_file"
+echo "ml_runtime: ${total_ml_runtime}, og_runtime_no_resize: ${total_og_runtime_no_resize}, runtime_speedup: ${runtime_speedup}" >> "$output_log_file"
+echo "ml_hpwl: ${ml_placement_hpwl}, og_custom hpwl: ${og_custom_hpwl}, og_orfs_hpwl: ${og_orfs_hpwl}" >> "$output_log_file"
+echo "custom_hpwl_speedup: ${custom_hpwl_speedup}, orfs_hpwl_speedup: ${orfs_hpwl_speedup}\n" >> "$output_log_file"
