@@ -5,8 +5,7 @@ The repo has been revamped to make it easier for users to test different configu
 Note: Before running a file, look briefly at top of each file for variables to adjust (paths, designs, processes...)
 
 (1): Setup Repo
-- See gen_floorplan_and_copy.sh to create neccesary directories, generate ofrs products that will be used for testing/evaluation, and copy those products to a local directory. This repo has many of the directories already created, but if an error occurs in attempting to read/write to location, it is probably because
-either the directory/file does not exist and should be created using this script, or that the paths in the python files being run have not been set properly.
+- See gen_floorplan_and_copy.sh to create neccesary directories, generate ofrs products that will be used for testing/evaluation, and copy those products to a local directory. This repo has many of the directories already created (NOTE: the log files from orfs are not currently there, meaning you need to run orfs and copy the files using gen_floorplan_and_copy.sh), but if an error occurs in attempting to read/write to location, it is probably because either the directory/file does not exist and should be created using this script, or that the paths in the python files being run have not been set properly.
 - Before moving on, for each configuration (i.e. design and process) ensure the proper directories have been created and files been imported
   - this means:
     - ofrs_deliv/{process}/{design}/{files...}
