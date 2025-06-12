@@ -113,12 +113,12 @@ train_utils.py: Defines part of training/inference including sampling
 
 results.log: used to store final metrics
 
-### Limitations
-Our model is limited in a variety manners. The most glaring issue is the lack of clustering, leading to other limitations such as an innability to deal with huge node amounts. Due to this, the standard cell to standard cell legality function was been removed, though it does work, and code within the sampling function has only been commented out. This limits our ability to measure local density.
+### Limitations / Conclusion
+Our model is limited in a variety manners. The most glaring issue is the lack of clustering, leading to other limitations such as an innability to deal with huge node amounts. Due to this, the standard cell to standard cell legality function was been removed, though it does work, and code within the sampling function has only been commented out. This limits our ability to mitigate violations in local density.
 
-Another issue was the lack of reduction in the MSE during training, even with a small batch of simple models. Experiments showed the MSE very quickly reducing to a value of 1, but never going subsantially below it. This could imply architecutal limitation of the current model as it pertains to diffusion. 
+Another issue was the lack of reduction in the MSE during training, even with a small batch of simple graphs. Experiments showed the MSE very quickly reducing to a value of 1, but never going subsantially below it. Modifications to hidden feature size, number of blocks (sequence of GNN and Transformers), training rate, etc..., did not solve this issue. This could imply architecutal limitation of the current model as it pertains to diffusion. 
 
-Our model during inference can have issues producing cells that stay within the boundaries, even with guidance potential. To patch this, we deployed tanh() functions after each sampling iteration.
+Our model during inference can have issues producing cells that stay within the boundaries, even with guidance potential. To patch this, we deployed tanh() functions after each sampling iteration, though this is diverging from the "spirit" of diffusion models, as a properly functioning model should be able to stay within the range it was trained for. This problem is probably due to a lack of fitting durin training, combined with the low (20) number of denoising steps during inference.
 
 Our model operates on a Digraph inwhich its cells are modeled as nodes. This means it cannot model multiple edges between the same 2 cells.
 
