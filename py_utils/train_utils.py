@@ -101,8 +101,6 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, grad_weights=None,
         grad = torch.zeros_like(x_t)
         for metric in gradients:
             if gradients[metric] is not None:
-                if metric == "w_m_legality":
-                    print(f"gradient[{metric}]: {gradients[metric]}")
                 grad += gradients[metric] * grad_weights[metric]
                 # exit()
 

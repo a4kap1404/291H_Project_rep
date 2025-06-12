@@ -58,12 +58,12 @@ odb_dir = f"{odb_dir_base}/{process}/{design}"
 odb_design, block, tech, dbu_per_micron = load_odb_info(lib_path, odb_path)
 
 # load placement
-placement_name = "ml_placed_graph.pkl"
+placement_name = f"{odb_dir}/ml_placed_graph.pkl"
 with open(placement_name, "rb") as f:
     cell_placement = pickle.load(f)
 
 # load cell map
-cell_map_filename = "odb_placement_cell_map.pkl"
+cell_map_filename = f"{odb_dir}/odb_placement_cell_map.pkl"
 with open(cell_map_filename, "rb") as f:
     cell_map = pickle.load(f)
 

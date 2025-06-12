@@ -183,8 +183,8 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    
-    filename = "odb_placement.pkl" # from place_p1.py
+
+
 
     design = "gcd"
     process="nangate45"
@@ -195,11 +195,17 @@ if __name__ == '__main__':
     process = sys.argv[2]
 
     # adjust if needed
+
+    # from place_p1.py
+    odb_dir_base = "odbs" # output directory
+    odb_dir = f"{odb_dir_base}/{process}/{design}"
+    filename = f"{odb_dir}/odb_placement.pkl"
+
     model_dir = "models"
-    modelname = "placer_model" # will save model
+    modelname = "placer_model"
     model_path = model_dir + "/" + modelname + ".pkl"
 
-    placement_name = "ml_placed_graph.pkl" # will export
+    placement_name = f"{odb_dir}/ml_placed_graph.pkl" # will export
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     

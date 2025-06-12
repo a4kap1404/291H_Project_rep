@@ -25,6 +25,8 @@ process = sys.argv[2]
 # adjust if neccesary
 lib_dir = "corner_libs"
 ofrs_dir = "ofrs_deliv"
+odb_dir_base = "odbs" # output directory
+odb_dir = f"{odb_dir_base}/{process}/{design}"
 
 
 lib_map = {
@@ -37,7 +39,7 @@ odb_path = f"{ofrs_dir}/{process}/{design}/3_2_place_iop.odb"
 odb_design, block, tech, dbu_per_micron = load_odb_info(lib_path, odb_path)
 
 # assume 3_2_place_iop has been done and loaded
-filename = "odb_placement.pkl"
-cell_map_filename = "odb_placement_cell_map.pkl"
+filename = f"{odb_dir}/odb_placement.pkl"
+cell_map_filename = f"{odb_dir}/odb_placement_cell_map.pkl"
 export_odb_data(filename, cell_map_filename, block, odb_design, tech)
 
