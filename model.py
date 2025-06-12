@@ -12,8 +12,9 @@ class SinusoidalEncoding(nn.Module):
         assert(pos_dim % 4 == 0)
     # CHECK AFTER
     def forward(self, coords):
+        device = coords.device
         # coords: (num_nodes, 2)
-        div_range = torch.arange(0, self.pos_dim // 2, 2, dtype=torch.float32) # (pos_dim / 4)
+        div_range = torch.arange(0, self.pos_dim // 2, 2, dtype=torch.float32).to(device) # (pos_dim / 4)
         div_term = torch.exp(div_range * -(torch.log(torch.tensor(10000.0)) / (self.pos_dim // 2))) # (pos_dim / 4)
         # print("SinEnc position div term:", div_term.shape)
 
@@ -25,20 +26,20 @@ class SinusoidalEncoding(nn.Module):
         y_coords = coords[:, 1]
         # x coords
         # pe_x = torch.zeros(B, num_nodes, self.pos_dim // 2)
-        pe_x = torch.zeros(num_nodes, self.pos_dim // 2)
+        pe_x = torch.zeros(num_nodes, self.pos_dim // 2).to(device)
         # print(x_coords.unsqueeze(-1).shape, div_term.shape)
         # print("coords shape:", coords.shape)
         # pe_x[:,:, 0::2] = torch.sin(x_coords.unsqueeze(-1) * div_term)
-        pe_x[:, 0::2] = torch.sin(x_coords.unsqueeze(-1) * div_term)
+        pe_x[:, 0::2] = torch.sin(x_coords.unsqueeze(-1) * div_term).to(device)
         # pe_x[:,:, 1::2] = torch.cos(x_coords.unsqueeze(-1) * div_term)
-        pe_x[:, 1::2] = torch.cos(x_coords.unsqueeze(-1) * div_term)
+        pe_x[:, 1::2] = torch.cos(x_coords.unsqueeze(-1) * div_term).to(device)
         # y coords
         # pe_y = torch.zeros(B, num_nodes, self.pos_dim // 2)
-        pe_y = torch.zeros(num_nodes, self.pos_dim // 2)
+        pe_y = torch.zeros(num_nodes, self.pos_dim // 2).to(device)
         # pe_y[:,:, 0::2] = torch.sin(y_coords.unsqueeze(-1) * div_term)
-        pe_y[:, 0::2] = torch.sin(y_coords.unsqueeze(-1) * div_term)
+        pe_y[:, 0::2] = torch.sin(y_coords.unsqueeze(-1) * div_term).to(device)
         # pe_y[:,:, 1::2] = torch.cos(y_coords.unsqueeze(-1) * div_term)
-        pe_y[:, 1::2] = torch.cos(y_coords.unsqueeze(-1) * div_term)
+        pe_y[:, 1::2] = torch.cos(y_coords.unsqueeze(-1) * div_term).to(device)
 
         pe = torch.cat((pe_x, pe_y), dim=-1) # (B, num_nodes, pos_dim)
         # assert(pe.shape == torch.Size([B, num_nodes, self.pos_dim])) # remove later
@@ -121,9 +122,9 @@ class DiffusionModel(nn.Module):
                 'ln4': nn.LayerNorm(hidden_dim),
                 'gnn3': GATv2Conv(hidden_dim, hidden_dim, heads=4, concat=False, edge_dim=edge_dim), # ccheck args
                 'ln5': nn.LayerNorm(hidden_dim),
-                # 'attn1': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True),
+                'attn1': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True),
                 'gnn4': GATv2Conv(hidden_dim, hidden_dim, heads=4, concat=False, edge_dim=edge_dim), # ccheck args
-                # 'attn2': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True), # check args
+                'attn2': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True), # check args
                 'mlp2': MLP(hidden_dim, 4 * hidden_dim, hidden_dim),
             })
             )
@@ -148,6 +149,8 @@ class DiffusionModel(nn.Module):
         assert(len(edge_attr.shape) == 2)
         assert(len(node_attr.shape) == 2)
 
+        device = x.device
+
         # B = x.shape[-3] # this is unneeded
         num_nodes = x.shape[-2]
 
@@ -158,7 +161,7 @@ class DiffusionModel(nn.Module):
         
         # repeat: [B, time_dim] --> [B, num_nodes, time_dim]
         # time_emb = time_emb.unsqueeze(1).repeat(1, num_nodes, 1)
-        time_emb = time_emb.unsqueeze(0).repeat(num_nodes, 1) # [num_nodes, time_dim]
+        time_emb = time_emb.unsqueeze(0).repeat(num_nodes, 1).to(device) # [num_nodes, time_dim]
         # print("time_emb size:", time_emb.shape)
         # exit()
 
@@ -202,13 +205,13 @@ class DiffusionModel(nn.Module):
             x = block['gnn3'](x, edge_index, edge_attr) + time_emb
             x = block['ln3'](x)
             x = torch.relu(x)
-            # attn_output, _ = block['attn1'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0)) # is this right
-            # x = attn_output.squeeze(0) + x # modded
+            attn_output, _ = block['attn1'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0)) # is this right
+            x = attn_output.squeeze(0) + x # modded
             x = block['gnn4'](x, edge_index, edge_attr) + time_emb
             x = block['ln4'](x)
             x = torch.relu(x)
-            # attn_output, _ = block['attn2'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0))
-            # x = attn_output.squeeze(0) + x # modded
+            attn_output, _ = block['attn2'](x.unsqueeze(0), x.unsqueeze(0), x.unsqueeze(0))
+            x = attn_output.squeeze(0) + x # modded
             x = block['mlp2'](x) + time_emb
             x = block['ln5'](x)
             x = torch.relu(x)

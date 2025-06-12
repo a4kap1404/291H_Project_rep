@@ -10,7 +10,7 @@ import pickle
 from model import *
 from py_utils.model_utils import *
 
-from py_utils.datagen import *
+from datagen import *
 from py_utils.train_utils import *
 
 
@@ -18,11 +18,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"device:", device)
 
 # change this if you generate your own dataset
-training_data_path = "./syn_data/Data_N100_v0.pkl" # was being used
-# training_data_path = "./syn_data/Data_N2_v0.pkl"
+# training_data_path = "./syn_data/Data_N100_v0.pkl" # was being used
+training_data_path = "./syn_data/Data_N2_v0.pkl"
 # training_data_path = "./syn_data/Data.pkl"
- 
-test_model_after_training = False
+
+# test_model_after_training = False
+test_model_after_training = True # should be False
 model_dir = "models"
 modelname = "placer_model" # will save model
 model_path = model_dir + "/" + modelname + ".pkl"
@@ -53,7 +54,8 @@ block_count = 3
 x_encode_dim = 48
 
 # timesteps = 1000
-timesteps = 30 # very low to keep inference time reasonable given no clustering
+# timesteps = 30 # very low to keep inference time reasonable given no clustering
+timesteps = 50 # very low to keep inference time reasonable given no clustering
 beta_start = 1e-4
 beta_end = 0.02
 
@@ -86,7 +88,7 @@ dataloader = DataLoader(dataset, batch_size=1, shuffle=True) # size of 1 is necc
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
 # noise schedule
-noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end)
+noise_schedule = LinearNoiseSchedule(timesteps=timesteps, beta_start=beta_start, beta_end=beta_end, device=device)
 
 # loss
 mse_loss = torch.nn.MSELoss()
@@ -94,7 +96,7 @@ mse_loss = torch.nn.MSELoss()
 print("training model...")
 
 # training
-train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=timesteps, num_epochs=epochs, debug=debug)
+train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=timesteps, num_epochs=epochs, device=device, debug=debug)
 
 print("done training model, now saving")
 
@@ -110,8 +112,8 @@ if test_model_after_training:
     # tune these
     w_hpwl = 1e-4
     w_legality = 1e-4
-    w_m_legality = 1e-3 # this one cant be violated either
-    w_bound_legality = 1e-3 # this SHOULD BE WEIGHTED HIGHLY, as we SHOULD HAVE no violation of this
+    w_m_legality = 8e-4 # this one cant be violated either
+    w_bound_legality = 1e-4 # this SHOULD BE WEIGHTED HIGHLY, as we SHOULD HAVE no violation of this
     # PUT CHECKS IN PLACE in guided_sampling to ensure it does not violatd,
     # maybe even put a manual corrector if by end, we still see violations
     
@@ -123,13 +125,16 @@ if test_model_after_training:
         "w_bound_legality": w_bound_legality
     }
 
-    guidance_scale = 1
+    for weight in grad_weights:
+        grad_weights[weight] *= 1000 / timesteps
+
+    guidance_scale = 0.2
     tanh_threshold = 1
 
     test_iter = iter(dataloader) # currently on training data
     batch = next(test_iter)
     print(f"input_shape: {batch.x.shape}")
-    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_weights, guidance_scale, tanh_threshold)
+    out = guided_sampling(model, noise_schedule, batch, timesteps, grad_weights, guidance_scale, tanh_threshold, device)
     print(f"outptut shape: {out.shape}")
     print("out:", out)
     # check to see if constraints are met
@@ -139,3 +144,5 @@ if test_model_after_training:
         print("macro_legality violation")
     if (boundary_legality > 0):
         print("boundary_legality violation")
+
+    print(f"hpwl (normalized): {compute_hpwl(out, batch)}")

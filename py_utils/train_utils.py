@@ -10,23 +10,25 @@ import pickle
 from model import *
 from py_utils.model_utils import *
 
-from py_utils.datagen import *
+from datagen import *
+
 
 # loss function
 mse_loss = nn.MSELoss()
 
-def train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=1000, num_epochs=50, debug=False):
+def train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=1000, num_epochs=50, device="cpu", debug=False):
     model.train()
     for epoch in range(num_epochs):
         epoch_loss = 0
         for batch in dataloader:
+            batch = batch.to(device)
             x0 = batch.x
             # print("x0:", x0.shape)
             # old version # t = torch.randint(0, num_steps, (x0.size(0),), device=x0.device)
             t = torch.randint(0, num_steps, (len(batch),)).to(x0.device)
             # print("t (actual)", t)
             # exit()
-            noise = torch.randn_like(x0)
+            noise = torch.randn_like(x0).to(device)
             # print("noise:", noise.shape)
             xt = noise_schedule.q_sample(x0, t, noise)
             # print("xt:", xt.shape)
@@ -59,8 +61,20 @@ def train_ddpm(model, dataloader, optimizer, noise_schedule, num_steps=1000, num
         avg_loss = epoch_loss / len(dataloader)
         print(f"avg loss on epoch #{epoch}: {avg_loss:.5f}")
 
-def guided_sampling(model, noise_schedule, graph, steps=1000, grad_weights=None, guidance_scale=1, tanh_threshold=1.0):
+def guided_sampling(model, noise_schedule, graph, steps=1000, grad_weights=None, guidance_scale=1, tanh_threshold=1.0, device="cpu"):
+
+    graph.x = graph.x
+    graph.edge_index = graph.edge_index.to(device)
+    graph.edge_attr = graph.edge_attr.to(device)
+    graph.node_attr = graph.node_attr.to(device)
+    graph.macro_dims= graph.macro_dims.to(device)
+    graph.macro_pos= graph.macro_pos.to(device)
+    graph.io_pos= graph.io_pos.to(device)
+    graph.chip_dims= graph.chip_dims.to(device)
+    graph.nn_chip_dims= graph.nn_chip_dims.to(device)
+
     x = torch.randn_like(graph.x).to(next(model.parameters()).device)
+    
     for t in reversed(range(steps)):
 
         x_t = x.detach().clone().requires_grad_()
@@ -70,7 +84,7 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, grad_weights=None,
             print(f"--steps:{t} / {steps}--")
             print("x[0]:", x_t[0])
         with torch.no_grad():
-            pred_noise = model(x_t, graph.edge_index, graph.edge_attr, torch.tensor([t], dtype=torch.float), 
+            pred_noise = model(x_t, graph.edge_index, graph.edge_attr, torch.tensor([t], dtype=torch.float).to(device), 
                                graph.node_attr)
             # x0_hat = noise_schedule.predict_x0(x, t, pred_noise)
             
@@ -81,25 +95,29 @@ def guided_sampling(model, noise_schedule, graph, steps=1000, grad_weights=None,
             "w_hpwl": compute_hpwl_gradient(x0_hat, graph, x_t),
             # "w_legality": compute_legality_gradient(x0_hat, graph, x_t), # comment this back in if you implement cluster
             "w_m_legality": compute_macro_legality_gradient(x0_hat, graph, x_t),
-            "w_bound_legalty": compute_boundary_legality_gradient(x0_hat, graph, x_t)
+            "w_bound_legality": compute_boundary_legality_gradient(x0_hat, graph, x_t)
         }
         
         grad = torch.zeros_like(x_t)
         for metric in gradients:
             if gradients[metric] is not None:
+                if metric == "w_m_legality":
+                    print(f"gradient[{metric}]: {gradients[metric]}")
                 grad += gradients[metric] * grad_weights[metric]
+                # exit()
 
-        x = noise_schedule.p_sample_1(x_t, t, pred_noise, guidance_grad=grad, guidance_scale=guidance_scale)
-        # not optimal, but have to for now
-        if (t / steps) < tanh_threshold:
-            # print("f!!")
-            x = torch.tanh(x)
-            # if grad_list[2] > 0:
-                # x = x * 0.8
-    
-    # added b/c bad performance
-    # epsilon = 1e-4
-    # x = torch.tanh(x) * (1 - epsilon)
+        # if t < (steps - 4):
+            # print("exiting...")
+            # exit()
+        
+        # if len(gradients) > 0:
+        #     exit()
+        with torch.no_grad():
+            x = noise_schedule.p_sample_1(x_t, t, pred_noise, guidance_grad=grad, guidance_scale=guidance_scale)
+            # not optimal, but have to for now
+            if (t / steps) < tanh_threshold:
+                x = torch.tanh(x)
+        
     print("x[0]:", x[0])
     return x
 
@@ -115,12 +133,15 @@ def compute_hpwl(x, graph):
 
 
 def compute_hpwl_gradient(x0, graph, xt):
-    xt = xt.clone().detach().requires_grad_(True)
+    # xt = xt.clone().detach().requires_grad_(True)
+    xt = xt.requires_grad_(True)
     hpwl = compute_hpwl(x0, graph)
     # print("hpwl:", hpwl)
     grad = torch.autograd.grad(hpwl, xt, retain_graph=True, allow_unused=True)[0]
+    # print(f"hpwl: {hpwl}")
     # print("hpwl_grad:", grad)
     # print("hpwl_grad_shape:", grad.shape)
+    # exit()
     # if grad is None:
         # grad = torch.tensor([0,])
     return grad
@@ -245,7 +266,8 @@ def compute_boundary_legality(x, graph):
         return torch.zeros((1,), dtype=x.dtype, device=x.device, requires_grad=True)
 
 def compute_legality_gradient(x0, graph, xt):
-    xt = xt.clone().detach().requires_grad_(True)
+    # xt = xt.clone().detach().requires_grad_(True)
+    # xt = xt.clone().requires_grad_(True)
     legality = compute_legality(x0, graph)
     assert isinstance(legality, torch.Tensor), "legality must be a torch.Tensor"
     assert legality.requires_grad, "legality must require grad"
@@ -255,7 +277,8 @@ def compute_legality_gradient(x0, graph, xt):
     return grad
 
 def compute_macro_legality_gradient(x0, graph, xt):
-    xt = xt.clone().detach().requires_grad_(True)
+    # xt = xt.clone().detach().requires_grad_(True)
+    # xt = xt.clone().requires_grad_(True)
     legality = compute_macro_legality(x0, graph)
     assert isinstance(legality, torch.Tensor), "legality must be a torch.Tensor"
     assert legality.requires_grad, "legality must require grad"
@@ -263,7 +286,8 @@ def compute_macro_legality_gradient(x0, graph, xt):
     return grad
 
 def compute_boundary_legality_gradient(x0, graph, xt):
-    xt = xt.clone().detach().requires_grad_(True)
+    # xt = xt.clone().detach().requires_grad_(True)
+    # xt = xt.clone().requires_grad_(True)
     legality = compute_boundary_legality(x0, graph)
     assert isinstance(legality, torch.Tensor), "legality must be a torch.Tensor"
     assert legality.requires_grad, "legality must require grad"

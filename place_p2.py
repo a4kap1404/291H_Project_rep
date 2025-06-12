@@ -7,7 +7,7 @@
 
 import networkx as nx
 
-from py_utils.datagen import *
+from datagen import *
 from py_utils.train_utils import *
 from model import *
 import time

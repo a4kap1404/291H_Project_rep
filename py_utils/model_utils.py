@@ -1,14 +1,14 @@
 import torch
 
 class LinearNoiseSchedule:
-    def __init__(self, timesteps=1000, beta_start=1e-4, beta_end=0.02):
+    def __init__(self, timesteps=1000, beta_start=1e-4, beta_end=0.02, device="cpu"):
         self.timesteps = timesteps
-        self.betas = torch.linspace(beta_start, beta_end, timesteps)
+        self.betas = torch.linspace(beta_start, beta_end, timesteps).to(device)
         self.alphas = 1.0 - self.betas
         self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
 
     def q_sample(self, x0, t, noise):
-        sqrt_alpha_cumprod = self.alphas_cumprod[t].sqrt().unsqueeze(-1)
+        sqrt_alpha_cumprod = self.alphas_cumprod[t].to().sqrt().unsqueeze(-1)
         sqrt_one_minus_alpha = (1 - self.alphas_cumprod[t]).sqrt().unsqueeze(-1)
         return sqrt_alpha_cumprod * x0 + sqrt_one_minus_alpha * noise
 
@@ -30,7 +30,10 @@ class LinearNoiseSchedule:
             mean = (xt - coef1 * noise_pred) / sqrt_alpha_t
             # apply guidance if provided
             if guidance_grad is not None and guidance_scale != 0:
+                # print(f"guidance grad: {guidance_grad}")
+                # print(f"mean before: {mean}")
                 mean = mean + guidance_scale * guidance_grad
+                # print(f"mean after: {mean}")
             # add noise for t > 0
             if t.max() > 0:
                 # sample noise

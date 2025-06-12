@@ -18,7 +18,7 @@ import pickle
 import numpy as np
 import os
 
-from py_utils.datagen import *
+from datagen import *
 
 
 if __name__ == '__main__':
