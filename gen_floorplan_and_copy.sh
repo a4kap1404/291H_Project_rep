@@ -4,13 +4,13 @@ set -e
 # Description: Used to generate odb and json files from ofrs, and copy files to a local directory
 
 # modify these to generate specific design
-process="nangate45"
-# process="asap7"
+# process="nangate45"
+process="asap7"
 # design="aes"
-design="gcd"
+# design="gcd"
 # design="ibex"
-# design="ariane136"
-# design="jpeg"
+# design="ariane136" # fails to generate with nangate45, can try just using regular Makefile
+design="jpeg"
 # design="swerv_wrapper" # fails to generate with nangate45, can try just using regular Makefile
 
 

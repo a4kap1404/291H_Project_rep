@@ -18,3 +18,39 @@ ml_runtime: 7.97149, og_runtime_no_resize: 2.23, runtime_speedup: 0.279747
 ml_hpwl: 14424, og_custom hpwl: 4505, og_orfs_hpwl: 3216
 custom_hpwl_speedup: 0.312327, orfs_hpwl_speedup: 0.222962
 
+---------------------------------------------
+---------------------------------------------
+Design: aes, Process: nangate45 | Wed Jun 11 20:34:07 PDT 2025
+ml_runtime: 154.382, og_runtime_no_resize: 73.8, runtime_speedup: 0.478035
+ml_hpwl: 2314972, og_custom hpwl: 291075, og_orfs_hpwl: 263083
+custom_hpwl_speedup: 0.125736, orfs_hpwl_speedup: 0.113644\n
+Design: gcd, Process: nangate45 | Wed Jun 11 20:34:08 PDT 2025
+ml_runtime: 229.514, og_runtime_no_resize: 2.23, runtime_speedup: 0.00971618
+ml_hpwl: 15122, og_custom hpwl: 4505, og_orfs_hpwl: 3216
+custom_hpwl_speedup: 0.29791, orfs_hpwl_speedup: 0.21267\n
+Design: ibex, Process: nangate45 | Wed Jun 11 20:38:12 PDT 2025
+ml_runtime: 248.479, og_runtime_no_resize: 74.87, runtime_speedup: 0.301313
+ml_hpwl: 3018388, og_custom hpwl: 326918, og_orfs_hpwl: 271054
+custom_hpwl_speedup: 0.108309, orfs_hpwl_speedup: 0.0898009\n
+---------------------------------------------
+Design: aes, Process: asap7 | Wed Jun 11 21:25:20 PDT 2025
+ml_runtime: 1236.88, og_runtime_no_resize: 60.09, runtime_speedup: 0.0485819
+ml_hpwl: 642633, og_custom hpwl: 74834, og_orfs_hpwl: 64664
+custom_hpwl_speedup: 0.116449, orfs_hpwl_speedup: 0.100624\n
+Design: gcd, Process: asap7 | Wed Jun 11 21:25:23 PDT 2025
+ml_runtime: 244.764, og_runtime_no_resize: 3.72, runtime_speedup: 0.0151983
+ml_hpwl: 3118, og_custom hpwl: 1284, og_orfs_hpwl: 987
+custom_hpwl_speedup: 0.411802, orfs_hpwl_speedup: 0.316549\n
+Design: ibex, Process: asap7 | Wed Jun 11 21:32:07 PDT 2025
+ml_runtime: 403.572, og_runtime_no_resize: 100.41, runtime_speedup: 0.248803
+ml_hpwl: 944178, og_custom hpwl: 117781, og_orfs_hpwl: 99271
+custom_hpwl_speedup: 0.124744, orfs_hpwl_speedup: 0.10514\n
+Design: jpeg, Process: asap7 | Wed Jun 11 22:27:05 PDT 2025
+ml_runtime: 3575.68, og_runtime_no_resize: 277.54, runtime_speedup: 0.0776188
+ml_hpwl: 5067785, og_custom hpwl: 299762, og_orfs_hpwl: 252565
+custom_hpwl_speedup: 0.0591505, orfs_hpwl_speedup: 0.0498374\n
+---------------------------------------------
+Design: jpeg, Process: nangate45 | Wed Jun 11 23:24:33 PDT 2025
+ml_runtime: 3136.14, og_runtime_no_resize: 251.87, runtime_speedup: 0.0803121
+ml_hpwl: 19386523, og_custom hpwl: 1130525, og_orfs_hpwl: 929854
+custom_hpwl_speedup: 0.058315, orfs_hpwl_speedup: 0.0479639\n

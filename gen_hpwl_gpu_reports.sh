@@ -13,8 +13,11 @@ ofrs_deliv_base="ofrs_deliv"
 gpu_log_file="gpu_ml_placements.log"
 output_log_file="results.log"
 
-processes=("nangate45" "asap7")
-designs=("aes" "gcd" "ibex" "jpeg")
+# processes=("nangate45" "asap7") #restore this
+# processes=("asap7")
+processes=("nangate45")
+# designs=("aes" "gcd" "ibex" "jpeg")
+designs=("jpeg")
 
 
 
