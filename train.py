@@ -18,7 +18,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"device:", device)
 
 # change this if you generate your own dataset
-training_data_path = "./syn_data/Data_N100_v0.pkl" # was being used
+training_data_path = "./syn_data/Data_N30_v0.pkl" # was being used
 # training_data_path = "./syn_data/Data_N2_v0.pkl"
 # training_data_path = "./syn_data/Data.pkl"
 
@@ -59,7 +59,7 @@ timesteps = 20 # very low to keep inference time reasonable given no clustering
 beta_start = 1e-4
 beta_end = 0.02
 
-epochs = 5
+epochs = 20
 lr = 1e-3
 
 debug = False
