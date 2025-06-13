@@ -14,3 +14,19 @@ Design: ibex, Process: asap7 | Thu Jun 12 02:33:52 UTC 2025
 time (s): 290.304404
 Design: jpeg, Process: asap7 | Thu Jun 12 02:50:22 UTC 2025
 time (s): 931.974191
+Design: aes, Process: nangate45 | Fri Jun 13 03:54:19 UTC 2025
+time (s): 106.131790
+Design: gcd, Process: nangate45 | Fri Jun 13 03:54:28 UTC 2025
+time (s): 4.145500
+Design: ibex, Process: nangate45 | Fri Jun 13 03:56:36 UTC 2025
+time (s): 117.825960
+Design: jpeg, Process: nangate45 | Fri Jun 13 04:03:59 UTC 2025
+time (s): 416.738112
+Design: aes, Process: asap7 | Fri Jun 13 04:06:16 UTC 2025
+time (s): 127.429862
+Design: gcd, Process: asap7 | Fri Jun 13 04:06:24 UTC 2025
+time (s): 3.023167
+Design: ibex, Process: asap7 | Fri Jun 13 04:08:35 UTC 2025
+time (s): 119.673212
+Design: jpeg, Process: asap7 | Fri Jun 13 04:15:13 UTC 2025
+time (s): 373.904590
